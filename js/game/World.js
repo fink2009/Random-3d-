@@ -28,6 +28,9 @@ export class World {
         this.edgeFalloffEnd = 0.95;   // Fully faded at 95% from center
         this.edgeMinHeight = 0;       // Height at world edges
         
+        // Boundary buffer distance from world edge
+        this.boundaryBuffer = 10;
+        
         // Terrain data
         this.terrain = null;
         this.heightMap = [];
@@ -602,7 +605,7 @@ export class World {
     // Check collision with world objects and boundaries
     checkCollision(position, radius) {
         // Check world boundaries - prevent going to edge
-        const boundaryLimit = this.worldSize / 2 - 10; // 10 units from edge
+        const boundaryLimit = this.worldSize / 2 - this.boundaryBuffer;
         if (Math.abs(position.x) > boundaryLimit || Math.abs(position.z) > boundaryLimit) {
             return true;
         }
@@ -630,16 +633,21 @@ export class World {
     
     // Check if position is within safe world bounds
     isWithinBounds(x, z) {
-        const bound = this.worldSize / 2 - 5;
+        const bound = this.worldSize / 2 - this.boundaryBuffer;
         return Math.abs(x) < bound && Math.abs(z) < bound;
     }
     
     // Get clamped position within world bounds
     clampToWorldBounds(x, z) {
-        const bound = this.worldSize / 2 - 5;
+        const bound = this.worldSize / 2 - this.boundaryBuffer;
         return {
             x: Math.max(-bound, Math.min(bound, x)),
             z: Math.max(-bound, Math.min(bound, z))
         };
+    }
+    
+    // Get the boundary limit distance from center
+    getBoundaryLimit() {
+        return this.worldSize / 2 - this.boundaryBuffer;
     }
 }
