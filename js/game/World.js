@@ -15,6 +15,14 @@ export class World {
         this.terrainSegments = 128;
         this.heightScale = 30;
         
+        // Height bounds for terrain stability
+        this.minHeight = -5;
+        this.maxHeight = 50;
+        
+        // Noise function input bounds to prevent floating point issues
+        this.minNoiseInput = -1000;
+        this.maxNoiseInput = 1000;
+        
         // Terrain data
         this.terrain = null;
         this.heightMap = [];
@@ -65,7 +73,7 @@ export class World {
             
             // Get height from height map with safety clamp
             const height = this.sampleHeightMap(x, z);
-            const safeHeight = Number.isFinite(height) ? Math.max(-5, Math.min(50, height)) : 0;
+            const safeHeight = Number.isFinite(height) ? Math.max(this.minHeight, Math.min(this.maxHeight, height)) : 0;
             positions[i + 2] = safeHeight;
             
             // Assign colors based on height/biome
@@ -95,10 +103,6 @@ export class World {
     generateHeightMap() {
         const size = this.terrainSegments + 1;
         this.heightMap = new Array(size);
-        
-        // Define height bounds for stability
-        const minHeight = -5;
-        const maxHeight = 50;
         
         for (let i = 0; i < size; i++) {
             this.heightMap[i] = new Array(size);
@@ -131,7 +135,7 @@ export class World {
                 
                 // Apply height scale and clamp to prevent extreme values
                 const finalHeight = height * this.heightScale;
-                this.heightMap[i][j] = Math.max(minHeight, Math.min(maxHeight, finalHeight));
+                this.heightMap[i][j] = Math.max(this.minHeight, Math.min(this.maxHeight, finalHeight));
             }
         }
     }
@@ -139,8 +143,8 @@ export class World {
     // Simple noise function with clamping for stability
     noise(x, y) {
         // Clamp input values to prevent floating point issues
-        const clampedX = Math.max(-1000, Math.min(1000, x));
-        const clampedY = Math.max(-1000, Math.min(1000, y));
+        const clampedX = Math.max(this.minNoiseInput, Math.min(this.maxNoiseInput, x));
+        const clampedY = Math.max(this.minNoiseInput, Math.min(this.maxNoiseInput, y));
         const n = Math.sin(clampedX * 12.9898 + clampedY * 78.233) * 43758.5453;
         const result = (n - Math.floor(n)) * 2 - 1;
         // Clamp output to [-1, 1] for stability
@@ -191,7 +195,7 @@ export class World {
         const result = h0 * (1 - fj) + h1 * fj;
         
         // Final safety clamp to prevent extreme values
-        return Number.isFinite(result) ? Math.max(-5, Math.min(50, result)) : 0;
+        return Number.isFinite(result) ? Math.max(this.minHeight, Math.min(this.maxHeight, result)) : 0;
     }
     
     getHeightAt(x, z) {

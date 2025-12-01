@@ -93,6 +93,10 @@ export class Player {
         this.collisionRadius = 0.5;
         this.isGrounded = false;
         
+        // Physics constants
+        this.groundCheckTolerance = 0.01;
+        this.fallThroughThreshold = -10;
+        
         // Equipment (affects roll speed, damage, etc.)
         this.equipment = {
             weapon: { 
@@ -798,7 +802,7 @@ export class Player {
         const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
         const groundLevel = safeGroundHeight + 0.1;
         
-        if (this.position.y > groundLevel + 0.01) {
+        if (this.position.y > groundLevel + this.groundCheckTolerance) {
             // Apply gravity when above ground
             this.velocity.y -= this.gravity * deltaTime;
             this.isGrounded = false;
@@ -812,7 +816,7 @@ export class Player {
         }
         
         // Prevent falling through the world
-        if (this.position.y < -10) {
+        if (this.position.y < this.fallThroughThreshold) {
             this.position.y = safeGroundHeight + 1;
             this.velocity.y = 0;
         }
