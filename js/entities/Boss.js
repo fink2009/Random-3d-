@@ -664,8 +664,15 @@ export class Boss {
             this.position.z = this.arenaCenter.z - toCenter.z;
         }
         
-        // Ground height
-        this.position.y = this.game.world.getHeightAt(this.position.x, this.position.z) + 0.1;
+        // Ground height with safety check
+        const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
+        const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : this.arenaCenter.y;
+        this.position.y = safeGroundHeight + 0.1;
+        
+        // Ensure position values are valid
+        if (!Number.isFinite(this.position.x)) this.position.x = this.arenaCenter.x;
+        if (!Number.isFinite(this.position.y)) this.position.y = this.arenaCenter.y;
+        if (!Number.isFinite(this.position.z)) this.position.z = this.arenaCenter.z;
         
         // Friction
         this.velocity.x *= 0.95;
