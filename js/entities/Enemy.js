@@ -531,6 +531,7 @@ export class Enemy {
                 if (!meshRef || !meshRef.parent) {
                     if (animationId !== null) {
                         cancelAnimationFrame(animationId);
+                        animationId = null;
                     }
                     return;
                 }

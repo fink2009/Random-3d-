@@ -620,6 +620,7 @@ export class Boss {
                 if (!meshRef || !meshRef.parent) {
                     if (animationId !== null) {
                         cancelAnimationFrame(animationId);
+                        animationId = null;
                     }
                     return;
                 }
