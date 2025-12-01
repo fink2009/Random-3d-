@@ -485,23 +485,21 @@ export class World {
                     stoneMaterial
                 );
                 
-                // Some pillars are broken
-                let actualHeight = pillarHeight;
+                // Some pillars are broken - scale them down
+                let scaleY = 1;
                 if (Math.random() > 0.5) {
-                    actualHeight = pillarHeight * (0.3 + Math.random() * 0.5);
-                    pillar.scale.y = actualHeight / pillarHeight;
+                    scaleY = 0.3 + Math.random() * 0.5;
+                    pillar.scale.y = scaleY;
                 }
                 
-                // Position pillar at terrain height (center of pillar at half height)
-                pillar.position.set(pillarX, pillarY + actualHeight / 2, pillarZ);
+                // Position pillar at terrain height
+                // Center of scaled pillar is at (pillarHeight * scaleY) / 2
+                pillar.position.set(pillarX, pillarY + (pillarHeight * scaleY) / 2, pillarZ);
                 pillar.castShadow = true;
                 
-                // Add directly to scene instead of group for correct positioning
                 this.scene.add(pillar);
                 this.structures.push(pillar);
             }
-            
-            // Add empty group to maintain array structure
         } else {
             // Regular ruins - place walls and pillars directly at terrain heights
             const wallCount = 3 + Math.floor(Math.random() * 4);
