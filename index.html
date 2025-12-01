@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soulsborne 3D - Open World Action RPG</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="hud">
+            <div id="player-stats">
+                <div class="stat-bar-container">
+                    <div id="health-bar" class="stat-bar">
+                        <div id="health-fill" class="stat-fill health"></div>
+                        <span id="health-text" class="stat-text">100/100</span>
+                    </div>
+                </div>
+                <div class="stat-bar-container">
+                    <div id="stamina-bar" class="stat-bar">
+                        <div id="stamina-fill" class="stat-fill stamina"></div>
+                    </div>
+                </div>
+                <div class="stat-bar-container">
+                    <div id="mana-bar" class="stat-bar">
+                        <div id="mana-fill" class="stat-fill mana"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="souls-counter">
+                <span id="souls-icon">◇</span>
+                <span id="souls-amount">0</span>
+            </div>
+            
+            <div id="equipment-display">
+                <div class="equipment-slot" id="weapon-slot">⚔</div>
+                <div class="equipment-slot" id="shield-slot">🛡</div>
+                <div class="equipment-slot" id="item-slot">🧪</div>
+            </div>
+        </div>
+        
+        <!-- Boss Health Bar -->
+        <div id="boss-health-container" class="hidden">
+            <div id="boss-name">Boss Name</div>
+            <div id="boss-health-bar">
+                <div id="boss-health-fill"></div>
+            </div>
+        </div>
+        
+        <!-- Lock-on Indicator -->
+        <div id="lock-on-indicator" class="hidden">◎</div>
+        
+        <!-- Death Screen -->
+        <div id="death-screen" class="hidden">
+            <div id="death-text">YOU DIED</div>
+        </div>
+        
+        <!-- Victory Screen -->
+        <div id="victory-screen" class="hidden">
+            <div id="victory-text">ENEMY FELLED</div>
+            <div id="souls-gained"></div>
+        </div>
+        
+        <!-- Pause Menu -->
+        <div id="pause-menu" class="hidden">
+            <div class="menu-container">
+                <h1>PAUSED</h1>
+                <button class="menu-button" id="resume-btn">Resume</button>
+                <button class="menu-button" id="inventory-btn">Inventory</button>
+                <button class="menu-button" id="stats-btn">Character</button>
+                <button class="menu-button" id="quit-btn">Quit</button>
+            </div>
+        </div>
+        
+        <!-- Bonfire/Checkpoint Menu -->
+        <div id="bonfire-menu" class="hidden">
+            <div class="menu-container">
+                <h1>SITE OF GRACE</h1>
+                <button class="menu-button" id="rest-btn">Rest</button>
+                <button class="menu-button" id="level-up-btn">Level Up</button>
+                <button class="menu-button" id="fast-travel-btn">Fast Travel</button>
+                <button class="menu-button" id="leave-btn">Leave</button>
+            </div>
+        </div>
+        
+        <!-- Level Up Menu -->
+        <div id="level-up-menu" class="hidden">
+            <div class="menu-container level-up">
+                <h1>LEVEL UP</h1>
+                <div id="current-level">Level: <span id="level-value">1</span></div>
+                <div id="souls-available">Souls: <span id="souls-for-level">0</span></div>
+                <div id="cost-display">Cost: <span id="level-cost">100</span></div>
+                <div class="stats-grid">
+                    <div class="stat-row">
+                        <span class="stat-name">Vigor</span>
+                        <span class="stat-value" id="vigor-value">10</span>
+                        <button class="stat-btn" data-stat="vigor">+</button>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Endurance</span>
+                        <span class="stat-value" id="endurance-value">10</span>
+                        <button class="stat-btn" data-stat="endurance">+</button>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Strength</span>
+                        <span class="stat-value" id="strength-value">10</span>
+                        <button class="stat-btn" data-stat="strength">+</button>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Dexterity</span>
+                        <span class="stat-value" id="dexterity-value">10</span>
+                        <button class="stat-btn" data-stat="dexterity">+</button>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Intelligence</span>
+                        <span class="stat-value" id="intelligence-value">10</span>
+                        <button class="stat-btn" data-stat="intelligence">+</button>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-name">Faith</span>
+                        <span class="stat-value" id="faith-value">10</span>
+                        <button class="stat-btn" data-stat="faith">+</button>
+                    </div>
+                </div>
+                <button class="menu-button" id="confirm-level-btn">Confirm</button>
+                <button class="menu-button" id="cancel-level-btn">Back</button>
+            </div>
+        </div>
+        
+        <!-- Interaction Prompt -->
+        <div id="interaction-prompt" class="hidden">
+            <span id="prompt-key">E</span>
+            <span id="prompt-text">Interact</span>
+        </div>
+        
+        <!-- Debug Info -->
+        <div id="debug-info" class="hidden">
+            <div id="fps">FPS: 0</div>
+            <div id="position">Pos: 0, 0, 0</div>
+            <div id="state">State: idle</div>
+        </div>
+        
+        <!-- Controls Help -->
+        <div id="controls-help">
+            <div class="control-item">WASD - Move</div>
+            <div class="control-item">Mouse - Look</div>
+            <div class="control-item">Space - Roll</div>
+            <div class="control-item">Click - Attack</div>
+            <div class="control-item">Shift - Sprint</div>
+            <div class="control-item">Tab - Lock-on</div>
+        </div>
+    </div>
+    
+    <!-- Import Map for ES Modules - Uses CDN for Three.js -->
+    <!-- Note: For local development, you may need to serve this from a proper web server -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
