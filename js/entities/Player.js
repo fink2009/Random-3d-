@@ -799,21 +799,27 @@ export class Player {
     // PHYSICS AND MOVEMENT
     // ==========================================
     
-    applyGravity(deltaTime) {
-        // Get current ground height
-        const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
+    /**
+     * Helper method to get the ground level at a given position
+     * Returns the safe ground height plus a small offset
+     */
+    getGroundLevelAt(x, z) {
+        const groundHeight = this.game.world.getHeightAt(x, z);
         const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
-        const groundLevel = safeGroundHeight + 0.1;
+        return safeGroundHeight + 0.1;
+    }
+    
+    applyGravity(deltaTime) {
+        const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
         if (this.position.y > groundLevel + this.groundCheckTolerance) {
             // In the air - apply gravity
             this.velocity.y -= this.gravity * deltaTime;
             this.isGrounded = false;
         } else {
-            // On or near ground
-            this.isGrounded = true;
-            // Only reset downward velocity, allow upward (e.g., from jumps)
-            if (this.velocity.y < 0) {
+            // On or near ground - only mark as grounded if not moving upward
+            if (this.velocity.y <= 0) {
+                this.isGrounded = true;
                 this.velocity.y = 0;
             }
         }
@@ -846,22 +852,21 @@ export class Player {
         
         // Now snap to ground at the NEW horizontal position
         // This is critical - we need to check ground height at the position we moved to
-        const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
-        const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
-        const groundLevel = safeGroundHeight + 0.1;
+        const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
         // If we're at or below ground level, snap to ground
         if (this.position.y <= groundLevel) {
             this.position.y = groundLevel;
-            this.isGrounded = true;
-            if (this.velocity.y < 0) {
+            // Only mark as grounded if we were falling or stationary
+            if (this.velocity.y <= 0) {
+                this.isGrounded = true;
                 this.velocity.y = 0;
             }
         }
         
         // Prevent falling through the world using defined threshold
         if (this.position.y < this.fallThroughThreshold) {
-            this.position.y = safeGroundHeight + 1;
+            this.position.y = groundLevel + 1;
             this.velocity.y = 0;
         }
         
