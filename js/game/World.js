@@ -90,6 +90,10 @@ export class World {
         }
         
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        
+        // Mark position attribute as needing update after modification
+        geometry.attributes.position.needsUpdate = true;
+        
         geometry.computeVertexNormals();
         
         // Create terrain material
@@ -417,6 +421,8 @@ export class World {
             positions[i + 1] += (Math.random() - 0.5) * 0.3;
             positions[i + 2] += (Math.random() - 0.5) * 0.3;
         }
+        // Mark position attribute as needing update after modification
+        geometry.attributes.position.needsUpdate = true;
         geometry.computeVertexNormals();
         
         const material = new THREE.MeshStandardMaterial({
