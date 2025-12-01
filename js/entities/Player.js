@@ -97,6 +97,12 @@ export class Player {
         this.groundCheckTolerance = 0.01;
         this.fallThroughThreshold = -10;
         
+        // Position smoothing and sanity checks
+        this.lastValidPosition = new THREE.Vector3(0, 5, 0);
+        this.targetGroundY = 0;  // Target Y for smooth terrain following
+        this.groundYLerpSpeed = 10;  // How fast to lerp to target ground height
+        this.maxMovePerFrame = 10;  // Maximum distance allowed per frame to prevent teleporting
+        
         // Equipment (affects roll speed, damage, etc.)
         this.equipment = {
             weapon: { 
@@ -121,7 +127,12 @@ export class Player {
         
         // Set initial position
         const startY = this.game.world.getHeightAt(0, 0);
-        this.position.set(0, startY + 1, 0);
+        const safeStartY = Number.isFinite(startY) ? startY : 0;
+        this.position.set(0, safeStartY + 1, 0);
+        
+        // Initialize last valid position and target ground Y
+        this.lastValidPosition.copy(this.position);
+        this.targetGroundY = safeStartY + 0.1;
     }
     
     createPlayerMesh() {
@@ -842,6 +853,18 @@ export class Player {
         const newX = this.position.x + this.velocity.x * deltaTime;
         const newZ = this.position.z + this.velocity.z * deltaTime;
         
+        // Sanity check: reject moves that are too large (prevents teleporting)
+        const moveDistance = Math.sqrt(
+            Math.pow(newX - this.position.x, 2) + 
+            Math.pow(newZ - this.position.z, 2)
+        );
+        if (moveDistance > this.maxMovePerFrame) {
+            // Move is too large, likely a glitch - revert to last valid position
+            this.position.copy(this.lastValidPosition);
+            this.velocity.set(0, 0, 0);
+            return;
+        }
+        
         // Get world boundary limit from World.js
         const worldBound = this.game.world.getBoundaryLimit();
         
@@ -862,13 +885,34 @@ export class Player {
         // Apply vertical velocity
         this.position.y += this.velocity.y * deltaTime;
         
-        // Now snap to ground at the NEW horizontal position
-        // This is critical - we need to check ground height at the position we moved to
+        // Get ground level at the NEW horizontal position
         const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
-        // If we're at or below ground level, snap to ground
-        if (this.snapToGround(groundLevel)) {
-            this.isGrounded = true;
+        // Smooth Y position transition when following terrain (prevents jarring height changes)
+        if (this.isGrounded && this.velocity.y >= 0) {
+            // Update target ground Y
+            this.targetGroundY = groundLevel;
+            
+            // Smoothly lerp to target ground height
+            const yDifference = Math.abs(this.targetGroundY - this.position.y);
+            if (yDifference > 0.01) {
+                // Use lerp for smooth transition, but snap if very close
+                if (yDifference < 0.1) {
+                    this.position.y = this.targetGroundY;
+                } else {
+                    this.position.y = THREE.MathUtils.lerp(
+                        this.position.y,
+                        this.targetGroundY,
+                        this.groundYLerpSpeed * deltaTime
+                    );
+                }
+            }
+        } else {
+            // If we're at or below ground level, snap to ground
+            if (this.snapToGround(groundLevel)) {
+                this.isGrounded = true;
+                this.targetGroundY = groundLevel;
+            }
         }
         
         // Prevent falling through the world using defined threshold
@@ -889,6 +933,12 @@ export class Player {
         if (!Number.isFinite(this.position.x)) this.position.x = 0;
         if (!Number.isFinite(this.position.y)) this.position.y = 1;
         if (!Number.isFinite(this.position.z)) this.position.z = 0;
+        
+        // Clamp Y to reasonable range to prevent extreme values
+        this.position.y = THREE.MathUtils.clamp(this.position.y, -5, 500);
+        
+        // Store last valid position
+        this.lastValidPosition.copy(this.position);
     }
     
     regenerateStamina(deltaTime) {

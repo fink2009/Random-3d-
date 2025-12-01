@@ -97,7 +97,8 @@ export class World {
             vertexColors: true,
             roughness: 0.9,
             metalness: 0.1,
-            flatShading: false
+            flatShading: false,
+            side: THREE.DoubleSide  // Render both sides to ensure terrain is always visible
         });
         
         // Create mesh
