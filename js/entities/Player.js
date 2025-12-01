@@ -815,10 +815,18 @@ export class Player {
             this.isGrounded = true;
         }
         
-        // Prevent falling through the world
+        // Prevent falling through the world using defined threshold
         if (this.position.y < this.fallThroughThreshold) {
             this.position.y = safeGroundHeight + 1;
             this.velocity.y = 0;
+        }
+        
+        // Additional safety: If position is below terrain minimum, reset to spawn
+        const minTerrainHeight = this.game.world.minHeight - 10;
+        if (this.position.y < minTerrainHeight) {
+            const resetHeight = this.game.world.getHeightAt(0, 0);
+            this.position.set(0, Math.max(resetHeight + 1, 1), 0);
+            this.velocity.set(0, 0, 0);
         }
     }
     
@@ -827,14 +835,21 @@ export class Player {
         const newX = this.position.x + this.velocity.x * deltaTime;
         const newZ = this.position.z + this.velocity.z * deltaTime;
         
-        // Check world bounds
-        const worldBound = this.game.world.worldSize / 2 - 5;
+        // Get world boundary limit from World.js
+        const worldBound = this.game.world.getBoundaryLimit();
         
-        // Check collision
+        // Check collision first
         const testPos = new THREE.Vector3(newX, this.position.y, newZ);
-        if (!this.game.world.checkCollision(testPos, this.collisionRadius)) {
+        const hasCollision = this.game.world.checkCollision(testPos, this.collisionRadius);
+        
+        // Apply position with boundary clamping
+        if (!hasCollision) {
             this.position.x = THREE.MathUtils.clamp(newX, -worldBound, worldBound);
             this.position.z = THREE.MathUtils.clamp(newZ, -worldBound, worldBound);
+        } else {
+            // If collision, stop horizontal velocity
+            this.velocity.x = 0;
+            this.velocity.z = 0;
         }
         
         this.position.y += this.velocity.y * deltaTime;

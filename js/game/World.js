@@ -13,15 +13,23 @@ export class World {
         // Terrain settings
         this.worldSize = 500;
         this.terrainSegments = 128;
-        this.heightScale = 30;
+        this.heightScale = 20; // Reduced for smoother terrain
         
-        // Height bounds for terrain stability
-        this.minHeight = -5;
-        this.maxHeight = 50;
+        // Height bounds for terrain stability - more conservative range
+        this.minHeight = -2;
+        this.maxHeight = 40;
         
         // Noise function input bounds to prevent floating point issues
         this.minNoiseInput = -1000;
         this.maxNoiseInput = 1000;
+        
+        // Edge falloff settings for smooth boundaries
+        this.edgeFalloffStart = 0.7; // Start fading at 70% from center
+        this.edgeFalloffEnd = 0.95;   // Fully faded at 95% from center
+        this.edgeMinHeight = 0;       // Height at world edges
+        
+        // Boundary buffer distance from world edge
+        this.boundaryBuffer = 10;
         
         // Terrain data
         this.terrain = null;
@@ -107,35 +115,94 @@ export class World {
         for (let i = 0; i < size; i++) {
             this.heightMap[i] = new Array(size);
             for (let j = 0; j < size; j++) {
-                // Multi-octave noise for natural terrain
-                const x = (i / size) * 10;
-                const y = (j / size) * 10;
+                // Multi-octave noise for natural terrain with reduced amplitude
+                const x = (i / size) * 8; // Reduced frequency for smoother terrain
+                const y = (j / size) * 8;
                 
+                // Use smoothed noise with reduced octaves
                 let height = 0;
-                height += this.noise(x * 0.5, y * 0.5) * 1.0;
-                height += this.noise(x * 1, y * 1) * 0.5;
-                height += this.noise(x * 2, y * 2) * 0.25;
-                height += this.noise(x * 4, y * 4) * 0.125;
+                height += this.smoothNoise(x * 0.3, y * 0.3) * 1.0;  // Base terrain
+                height += this.smoothNoise(x * 0.6, y * 0.6) * 0.4;  // Medium detail
+                height += this.smoothNoise(x * 1.2, y * 1.2) * 0.15; // Fine detail (reduced)
                 
-                // Add some variation for interesting terrain
-                const distFromCenter = Math.sqrt(
-                    Math.pow((i - size/2) / (size/2), 2) + 
-                    Math.pow((j - size/2) / (size/2), 2)
-                );
+                // Calculate distance from center for edge handling
+                const normI = (i - size/2) / (size/2);
+                const normJ = (j - size/2) / (size/2);
+                const distFromCenter = Math.sqrt(normI * normI + normJ * normJ);
                 
-                // Create mountains at edges
-                if (distFromCenter > 0.7) {
-                    height += (distFromCenter - 0.7) * 30;
+                // Create gentle hills at edges instead of sharp mountains
+                if (distFromCenter > 0.6) {
+                    const edgeInfluence = (distFromCenter - 0.6) / 0.4;
+                    height += edgeInfluence * edgeInfluence * 15; // Smoother quadratic rise
                 }
                 
-                // Create a valley in the starting area
-                if (distFromCenter < 0.15) {
-                    height *= 0.3;
+                // Create a flat starting area in center
+                if (distFromCenter < 0.12) {
+                    const centerFactor = 1 - (distFromCenter / 0.12);
+                    height *= (1 - centerFactor * 0.8); // Flatten center
                 }
                 
-                // Apply height scale and clamp to prevent extreme values
-                const finalHeight = height * this.heightScale;
+                // Apply edge falloff for seamless boundaries
+                let edgeFalloff = 1.0;
+                if (distFromCenter > this.edgeFalloffStart) {
+                    const falloffProgress = (distFromCenter - this.edgeFalloffStart) / 
+                                           (this.edgeFalloffEnd - this.edgeFalloffStart);
+                    // Use smooth step for gradual transition
+                    edgeFalloff = 1.0 - this.smoothStep(0, 1, Math.min(falloffProgress, 1));
+                }
+                
+                // Apply height scale with edge falloff
+                const finalHeight = height * this.heightScale * edgeFalloff + 
+                                   this.edgeMinHeight * (1 - edgeFalloff);
+                
+                // Clamp to safe range
                 this.heightMap[i][j] = Math.max(this.minHeight, Math.min(this.maxHeight, finalHeight));
+            }
+        }
+        
+        // Apply smoothing pass to eliminate any remaining spikes
+        this.smoothHeightMap();
+    }
+    
+    // Smooth step function for gradual transitions
+    smoothStep(edge0, edge1, x) {
+        const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+        return t * t * (3 - 2 * t);
+    }
+    
+    // Smoothing pass to reduce terrain spikes
+    smoothHeightMap() {
+        const size = this.terrainSegments + 1;
+        const smoothed = new Array(size);
+        
+        for (let i = 0; i < size; i++) {
+            smoothed[i] = new Array(size);
+            for (let j = 0; j < size; j++) {
+                // Average with neighbors for smoother terrain
+                let sum = this.heightMap[i][j];
+                let count = 1;
+                
+                // Sample neighboring points
+                const neighbors = [
+                    [i-1, j], [i+1, j], [i, j-1], [i, j+1],
+                    [i-1, j-1], [i+1, j+1], [i-1, j+1], [i+1, j-1]
+                ];
+                
+                for (const [ni, nj] of neighbors) {
+                    if (ni >= 0 && ni < size && nj >= 0 && nj < size) {
+                        sum += this.heightMap[ni][nj];
+                        count++;
+                    }
+                }
+                
+                smoothed[i][j] = sum / count;
+            }
+        }
+        
+        // Apply smoothed values
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                this.heightMap[i][j] = smoothed[i][j];
             }
         }
     }
@@ -149,6 +216,30 @@ export class World {
         const result = (n - Math.floor(n)) * 2 - 1;
         // Clamp output to [-1, 1] for stability
         return Math.max(-1, Math.min(1, result));
+    }
+    
+    // Smoother noise using interpolation between sample points
+    smoothNoise(x, y) {
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const fx = x - x0;
+        const fy = y - y0;
+        
+        // Sample at integer positions
+        const n00 = this.noise(x0, y0);
+        const n10 = this.noise(x0 + 1, y0);
+        const n01 = this.noise(x0, y0 + 1);
+        const n11 = this.noise(x0 + 1, y0 + 1);
+        
+        // Use smooth interpolation (cosine-like curve)
+        const sx = fx * fx * (3 - 2 * fx);
+        const sy = fy * fy * (3 - 2 * fy);
+        
+        // Bilinear interpolation
+        const nx0 = n00 * (1 - sx) + n10 * sx;
+        const nx1 = n01 * (1 - sx) + n11 * sx;
+        
+        return nx0 * (1 - sy) + nx1 * sy;
     }
     
     sampleHeightMap(worldX, worldZ) {
@@ -511,8 +602,14 @@ export class World {
         this.sky = sky;
     }
     
-    // Check collision with world objects
+    // Check collision with world objects and boundaries
     checkCollision(position, radius) {
+        // Check world boundaries - prevent going to edge
+        const boundaryLimit = this.worldSize / 2 - this.boundaryBuffer;
+        if (Math.abs(position.x) > boundaryLimit || Math.abs(position.z) > boundaryLimit) {
+            return true;
+        }
+        
         // Check against rocks and structures
         for (const rock of this.rocks) {
             const dist = position.distanceTo(rock.position);
@@ -532,5 +629,25 @@ export class World {
         }
         
         return false;
+    }
+    
+    // Check if position is within safe world bounds
+    isWithinBounds(x, z) {
+        const bound = this.worldSize / 2 - this.boundaryBuffer;
+        return Math.abs(x) < bound && Math.abs(z) < bound;
+    }
+    
+    // Get clamped position within world bounds
+    clampToWorldBounds(x, z) {
+        const bound = this.worldSize / 2 - this.boundaryBuffer;
+        return {
+            x: Math.max(-bound, Math.min(bound, x)),
+            z: Math.max(-bound, Math.min(bound, z))
+        };
+    }
+    
+    // Get the boundary limit distance from center
+    getBoundaryLimit() {
+        return this.worldSize / 2 - this.boundaryBuffer;
     }
 }
