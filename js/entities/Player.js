@@ -554,6 +554,9 @@ export class Player {
         const startRotation = this.weaponMesh.rotation.z;
         const targetRotation = type === 'light' ? 1.5 : 2.0;
         
+        // Flag to track if hits have been checked for this attack
+        let hasCheckedHits = false;
+        
         // Simple animation using requestAnimationFrame
         const startTime = performance.now();
         
@@ -576,8 +579,9 @@ export class Player {
                 );
             }
             
-            // Check for hits at peak of swing
-            if (progress > 0.3 && progress < 0.5 && this.isAttacking) {
+            // Check for hits at peak of swing (only once per attack)
+            if (progress > 0.3 && progress < 0.5 && this.isAttacking && !hasCheckedHits) {
+                hasCheckedHits = true;
                 this.checkAttackHits();
             }
             
@@ -795,38 +799,41 @@ export class Player {
     // PHYSICS AND MOVEMENT
     // ==========================================
     
-    applyGravity(deltaTime) {
-        const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
-        
-        // Ensure groundHeight is a valid number
+    /**
+     * Helper method to get the ground level at a given position
+     * Returns the safe ground height plus a small offset
+     */
+    getGroundLevelAt(x, z) {
+        const groundHeight = this.game.world.getHeightAt(x, z);
         const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
-        const groundLevel = safeGroundHeight + 0.1;
+        return safeGroundHeight + 0.1;
+    }
+    
+    /**
+     * Helper method to snap position to ground and update grounded state
+     * Returns true if player is grounded
+     */
+    snapToGround(groundLevel) {
+        if (this.position.y <= groundLevel) {
+            this.position.y = groundLevel;
+            if (this.velocity.y <= 0) {
+                this.velocity.y = 0;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    applyGravity(deltaTime) {
+        const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
         if (this.position.y > groundLevel + this.groundCheckTolerance) {
-            // Apply gravity when above ground
+            // In the air - apply gravity
             this.velocity.y -= this.gravity * deltaTime;
             this.isGrounded = false;
         } else {
-            // Snap to ground and stop falling
-            this.position.y = groundLevel;
-            if (this.velocity.y < 0) {
-                this.velocity.y = 0;
-            }
-            this.isGrounded = true;
-        }
-        
-        // Prevent falling through the world using defined threshold
-        if (this.position.y < this.fallThroughThreshold) {
-            this.position.y = safeGroundHeight + 1;
-            this.velocity.y = 0;
-        }
-        
-        // Additional safety: If position is below terrain minimum, reset to spawn
-        const minTerrainHeight = this.game.world.minHeight - 10;
-        if (this.position.y < minTerrainHeight) {
-            const resetHeight = this.game.world.getHeightAt(0, 0);
-            this.position.set(0, Math.max(resetHeight + 1, 1), 0);
-            this.velocity.set(0, 0, 0);
+            // On or near ground
+            this.isGrounded = this.snapToGround(groundLevel);
         }
     }
     
@@ -842,7 +849,7 @@ export class Player {
         const testPos = new THREE.Vector3(newX, this.position.y, newZ);
         const hasCollision = this.game.world.checkCollision(testPos, this.collisionRadius);
         
-        // Apply position with boundary clamping
+        // Apply horizontal position with boundary clamping
         if (!hasCollision) {
             this.position.x = THREE.MathUtils.clamp(newX, -worldBound, worldBound);
             this.position.z = THREE.MathUtils.clamp(newZ, -worldBound, worldBound);
@@ -852,7 +859,31 @@ export class Player {
             this.velocity.z = 0;
         }
         
+        // Apply vertical velocity
         this.position.y += this.velocity.y * deltaTime;
+        
+        // Now snap to ground at the NEW horizontal position
+        // This is critical - we need to check ground height at the position we moved to
+        const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
+        
+        // If we're at or below ground level, snap to ground
+        if (this.snapToGround(groundLevel)) {
+            this.isGrounded = true;
+        }
+        
+        // Prevent falling through the world using defined threshold
+        if (this.position.y < this.fallThroughThreshold) {
+            this.position.y = groundLevel;
+            this.velocity.y = 0;
+        }
+        
+        // Additional safety: If position is below terrain minimum, reset to spawn
+        const minTerrainHeight = this.game.world.minHeight - 10;
+        if (this.position.y < minTerrainHeight) {
+            const spawnGroundLevel = this.getGroundLevelAt(0, 0);
+            this.position.set(0, spawnGroundLevel, 0);
+            this.velocity.set(0, 0, 0);
+        }
         
         // Ensure position values are valid numbers
         if (!Number.isFinite(this.position.x)) this.position.x = 0;

@@ -609,11 +609,24 @@ export class Boss {
         
         // Death animation
         if (this.mesh) {
+            // Store a reference to the mesh to prevent issues if this.mesh is nullified
+            const meshRef = this.mesh;
+            let animationId = null;
+            
             const fadeOut = () => {
-                if (!this.mesh) return;
+                // Check if animation should stop:
+                // - meshRef could be null if object was disposed
+                // - meshRef.parent is null when mesh is removed from scene
+                if (!meshRef || !meshRef.parent) {
+                    if (animationId !== null) {
+                        cancelAnimationFrame(animationId);
+                        animationId = null;
+                    }
+                    return;
+                }
                 
                 let allFaded = true;
-                this.mesh.traverse((child) => {
+                meshRef.traverse((child) => {
                     if (child.material) {
                         child.material.transparent = true;
                         if (child.material.opacity > 0) {
@@ -623,10 +636,10 @@ export class Boss {
                     }
                 });
                 
-                this.mesh.rotation.x = Math.min(this.mesh.rotation.x + 0.02, Math.PI / 4);
+                meshRef.rotation.x = Math.min(meshRef.rotation.x + 0.02, Math.PI / 4);
                 
                 if (!allFaded) {
-                    requestAnimationFrame(fadeOut);
+                    animationId = requestAnimationFrame(fadeOut);
                 }
             };
             
@@ -646,7 +659,9 @@ export class Boss {
     
     updateHealthBar() {
         const fill = document.getElementById('boss-health-fill');
-        fill.style.width = `${(this.health / this.maxHealth) * 100}%`;
+        if (fill) {
+            fill.style.width = `${(this.health / this.maxHealth) * 100}%`;
+        }
     }
     
     applyPhysics(deltaTime) {

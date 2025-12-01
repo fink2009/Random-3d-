@@ -513,29 +513,42 @@ export class Enemy {
         
         // Death animation
         if (this.mesh) {
+            // Store a reference to the mesh to prevent issues if this.mesh is nullified
+            const meshRef = this.mesh;
+            let animationId = null;
+            
             // Fade out
-            this.mesh.traverse((child) => {
+            meshRef.traverse((child) => {
                 if (child.material) {
                     child.material.transparent = true;
                 }
             });
             
             const fadeOut = () => {
-                if (!this.mesh) return;
+                // Check if animation should stop:
+                // - meshRef could be null if object was disposed
+                // - meshRef.parent is null when mesh is removed from scene
+                if (!meshRef || !meshRef.parent) {
+                    if (animationId !== null) {
+                        cancelAnimationFrame(animationId);
+                        animationId = null;
+                    }
+                    return;
+                }
                 
                 let allFaded = true;
-                this.mesh.traverse((child) => {
+                meshRef.traverse((child) => {
                     if (child.material && child.material.opacity > 0) {
                         child.material.opacity -= 0.02;
                         allFaded = false;
                     }
                 });
                 
-                this.mesh.rotation.x = Math.min(this.mesh.rotation.x + 0.05, Math.PI / 2);
-                this.mesh.position.y -= 0.01;
+                meshRef.rotation.x = Math.min(meshRef.rotation.x + 0.05, Math.PI / 2);
+                meshRef.position.y -= 0.01;
                 
                 if (!allFaded) {
-                    requestAnimationFrame(fadeOut);
+                    animationId = requestAnimationFrame(fadeOut);
                 }
             };
             
