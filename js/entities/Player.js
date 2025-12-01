@@ -447,8 +447,6 @@ export class Player {
             this.position.clone(),
             10
         );
-        
-        console.log('Roll started!'); // Debug
     }
     
     updateRoll(deltaTime) {
@@ -458,7 +456,6 @@ export class Player {
         if (this.rollTimer >= this.iFrameStart && this.rollTimer <= this.iFrameStart + this.iFrameDuration) {
             if (!this.hasIFrames) {
                 this.hasIFrames = true;
-                console.log('I-frames active!'); // Debug
             }
         } else {
             this.hasIFrames = false;
@@ -502,8 +499,6 @@ export class Player {
             this.position.clone(),
             5
         );
-        
-        console.log('Roll ended!'); // Debug
     }
     
     // ==========================================
@@ -623,8 +618,6 @@ export class Player {
                 const hitPos = enemy.position.clone();
                 hitPos.y += 1;
                 this.game.particleSystem.spawnHitSparks(hitPos, 15);
-                
-                console.log(`Hit enemy for ${damage} damage!`);
             }
         });
         
@@ -693,7 +686,6 @@ export class Player {
     takeDamage(amount, source) {
         // Check for i-frames during roll
         if (this.hasIFrames) {
-            console.log('Damage avoided with i-frames!');
             return;
         }
         
@@ -727,8 +719,6 @@ export class Player {
                     this.position.clone().add(new THREE.Vector3(0, 1.2, 0)),
                     10
                 );
-                
-                console.log('Attack blocked!');
             }
         }
         

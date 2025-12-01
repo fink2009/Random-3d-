@@ -290,8 +290,6 @@ export class Boss {
         this.isAttacking = true;
         this.attackTimer = 0;
         this.velocity.set(0, 0, 0);
-        
-        console.log(`Boss attack: ${this.currentAttack}`);
     }
     
     updateAttack(deltaTime) {
@@ -562,8 +560,6 @@ export class Boss {
         // Heal slightly on phase transition
         this.health += this.maxHealth * 0.1;
         this.health = Math.min(this.health, this.maxHealth);
-        
-        console.log(`Boss entering phase ${phase}!`);
     }
     
     takeDamage(amount, source) {

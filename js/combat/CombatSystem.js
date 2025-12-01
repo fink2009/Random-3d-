@@ -3,6 +3,8 @@
  * Handles damage calculations, hit detection, and combat effects
  */
 
+import * as THREE from 'three';
+
 export class CombatSystem {
     constructor(game) {
         this.game = game;
@@ -66,12 +68,13 @@ export class CombatSystem {
     
     // Check if attack is a backstab
     isBackstab(attacker, defender) {
-        const attackerDir = new THREE.Vector3(
-            Math.sin(attacker.rotation),
-            0,
-            Math.cos(attacker.rotation)
-        );
+        // Get direction from attacker to defender
+        const toDefender = new THREE.Vector3();
+        toDefender.subVectors(defender.position, attacker.position);
+        toDefender.y = 0;
+        toDefender.normalize();
         
+        // Get defender's facing direction
         const defenderDir = new THREE.Vector3(
             Math.sin(defender.rotation),
             0,
@@ -79,8 +82,9 @@ export class CombatSystem {
         );
         
         // Check if attacker is behind defender
-        const dot = attackerDir.dot(defenderDir);
-        return dot > 0.7; // Facing same direction = behind
+        // If defender is facing away from attacker (dot product is positive when both vectors point same way)
+        const dot = toDefender.dot(defenderDir);
+        return dot > 0.5; // Attacker approaching from behind
     }
     
     // Start parry window
