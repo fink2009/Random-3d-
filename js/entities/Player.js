@@ -817,21 +817,6 @@ export class Player {
         return safeGroundHeight + 0.1;
     }
     
-    /**
-     * Helper method to snap position to ground and update grounded state
-     * Returns true if player is grounded
-     */
-    snapToGround(groundLevel) {
-        if (this.position.y <= groundLevel) {
-            this.position.y = groundLevel;
-            if (this.velocity.y <= 0) {
-                this.velocity.y = 0;
-                return true;
-            }
-        }
-        return false;
-    }
-    
     applyGravity(deltaTime) {
         // Only apply gravity to velocity - actual position update happens in applyMovement
         // This prevents double-sampling terrain at different positions
