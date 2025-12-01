@@ -23,35 +23,46 @@ export class HUD {
         if (!player) return;
         
         // Update health bar
-        const healthPercent = player.getHealthPercent() * 100;
-        this.healthFill.style.width = `${healthPercent}%`;
-        this.healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
+        if (this.healthFill) {
+            const healthPercent = player.getHealthPercent() * 100;
+            this.healthFill.style.width = `${healthPercent}%`;
+            
+            // Change health bar color when low
+            if (healthPercent < 25) {
+                this.healthFill.style.background = 'linear-gradient(180deg, #ff4444 0%, #aa0000 50%, #660000 100%)';
+            } else {
+                this.healthFill.style.background = 'linear-gradient(180deg, #b22222 0%, #8b0000 50%, #650000 100%)';
+            }
+        }
         
-        // Change health bar color when low
-        if (healthPercent < 25) {
-            this.healthFill.style.background = 'linear-gradient(180deg, #ff4444 0%, #aa0000 50%, #660000 100%)';
-        } else {
-            this.healthFill.style.background = 'linear-gradient(180deg, #b22222 0%, #8b0000 50%, #650000 100%)';
+        if (this.healthText) {
+            this.healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
         }
         
         // Update stamina bar
-        const staminaPercent = player.getStaminaPercent() * 100;
-        this.staminaFill.style.width = `${staminaPercent}%`;
-        
-        // Flash stamina bar when low
-        if (staminaPercent < 20) {
-            this.staminaFill.style.opacity = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
-        } else {
-            this.staminaFill.style.opacity = 1;
+        if (this.staminaFill) {
+            const staminaPercent = player.getStaminaPercent() * 100;
+            this.staminaFill.style.width = `${staminaPercent}%`;
+            
+            // Flash stamina bar when low
+            if (staminaPercent < 20) {
+                this.staminaFill.style.opacity = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+            } else {
+                this.staminaFill.style.opacity = 1;
+            }
         }
         
         // Update mana bar
-        const manaPercent = player.getManaPercent() * 100;
-        this.manaFill.style.width = `${manaPercent}%`;
+        if (this.manaFill) {
+            const manaPercent = player.getManaPercent() * 100;
+            this.manaFill.style.width = `${manaPercent}%`;
+        }
         
         // Update souls counter
-        const souls = this.game.progressionSystem.souls;
-        this.soulsAmount.textContent = souls.toLocaleString();
+        if (this.soulsAmount && this.game.progressionSystem) {
+            const souls = this.game.progressionSystem.souls;
+            this.soulsAmount.textContent = souls.toLocaleString();
+        }
         
         // Update debug info
         this.updateDebugInfo();

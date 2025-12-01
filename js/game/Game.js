@@ -281,6 +281,9 @@ export class Game {
         // Update checkpoints
         this.checkpointSystem.update(this.deltaTime);
         
+        // Update progression system (souls pickup, dropped souls animation)
+        this.progressionSystem.update(this.deltaTime);
+        
         // Clean up dead entities
         this.cleanupEntities();
     }
