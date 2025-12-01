@@ -809,6 +809,21 @@ export class Player {
         return safeGroundHeight + 0.1;
     }
     
+    /**
+     * Helper method to snap position to ground and update grounded state
+     * Returns true if player is grounded
+     */
+    snapToGround(groundLevel) {
+        if (this.position.y <= groundLevel) {
+            this.position.y = groundLevel;
+            if (this.velocity.y <= 0) {
+                this.velocity.y = 0;
+                return true;
+            }
+        }
+        return false;
+    }
+    
     applyGravity(deltaTime) {
         const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
@@ -817,11 +832,8 @@ export class Player {
             this.velocity.y -= this.gravity * deltaTime;
             this.isGrounded = false;
         } else {
-            // On or near ground - only mark as grounded if not moving upward
-            if (this.velocity.y <= 0) {
-                this.isGrounded = true;
-                this.velocity.y = 0;
-            }
+            // On or near ground
+            this.isGrounded = this.snapToGround(groundLevel);
         }
     }
     
@@ -855,26 +867,21 @@ export class Player {
         const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
         // If we're at or below ground level, snap to ground
-        if (this.position.y <= groundLevel) {
-            this.position.y = groundLevel;
-            // Only mark as grounded if we were falling or stationary
-            if (this.velocity.y <= 0) {
-                this.isGrounded = true;
-                this.velocity.y = 0;
-            }
+        if (this.snapToGround(groundLevel)) {
+            this.isGrounded = true;
         }
         
         // Prevent falling through the world using defined threshold
         if (this.position.y < this.fallThroughThreshold) {
-            this.position.y = groundLevel + 1;
+            this.position.y = groundLevel;
             this.velocity.y = 0;
         }
         
         // Additional safety: If position is below terrain minimum, reset to spawn
         const minTerrainHeight = this.game.world.minHeight - 10;
         if (this.position.y < minTerrainHeight) {
-            const resetHeight = this.game.world.getHeightAt(0, 0);
-            this.position.set(0, Math.max(resetHeight + 1, 1), 0);
+            const spawnGroundLevel = this.getGroundLevelAt(0, 0);
+            this.position.set(0, spawnGroundLevel, 0);
             this.velocity.set(0, 0, 0);
         }
         

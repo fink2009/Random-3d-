@@ -614,9 +614,11 @@ export class Boss {
             let animationId = null;
             
             const fadeOut = () => {
-                // Check if animation should stop
+                // Check if animation should stop:
+                // - meshRef could be null if object was disposed
+                // - meshRef.parent is null when mesh is removed from scene
                 if (!meshRef || !meshRef.parent) {
-                    if (animationId) {
+                    if (animationId !== null) {
                         cancelAnimationFrame(animationId);
                     }
                     return;
