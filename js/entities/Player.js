@@ -97,20 +97,9 @@ export class Player {
         this.groundCheckTolerance = 0.01;
         this.fallThroughThreshold = -10;
         
-        // Position smoothing and sanity checks
-        this.lastValidPosition = new THREE.Vector3(0, 5, 0);
-        this.targetGroundY = 0;  // Target Y for smooth terrain following
-        this.groundYLerpSpeed = 10;  // How fast to lerp to target ground height
-        this.maxMovePerFrame = 10;  // Maximum distance allowed per frame to prevent teleporting
-        this.maxMovePerFrameSquared = this.maxMovePerFrame * this.maxMovePerFrame;  // Squared for efficient distance checks
-        
-        // Y position smoothing thresholds
-        this.ySnapThreshold = 0.01;  // Snap to ground if difference is less than this
-        this.yLerpThreshold = 0.1;   // Use lerp for smooth transition if difference is less than this
-        
-        // Y position bounds
-        this.minYPosition = -5;
-        this.maxYPosition = 500;
+        // Position stability constants
+        this.maxHeightChangePerFrame = 2.0; // Max vertical movement per frame when grounded
+        this.maxMovePerFrame = 10.0; // Max horizontal distance per frame (prevents teleporting)
         
         // Equipment (affects roll speed, damage, etc.)
         this.equipment = {
@@ -136,12 +125,7 @@ export class Player {
         
         // Set initial position
         const startY = this.game.world.getHeightAt(0, 0);
-        const safeStartY = Number.isFinite(startY) ? startY : 0;
-        this.position.set(0, safeStartY + 1, 0);
-        
-        // Initialize last valid position and target ground Y
-        this.lastValidPosition.copy(this.position);
-        this.targetGroundY = safeStartY + 0.1;
+        this.position.set(0, startY + 1, 0);
     }
     
     createPlayerMesh() {
@@ -362,15 +346,17 @@ export class Player {
             
             // Apply movement
             const speed = isSprinting ? this.sprintSpeed : this.moveSpeed;
+            // Clamp lerp factor to prevent overshooting when framerate drops
+            const lerpFactor = Math.min(1.0, this.acceleration * deltaTime);
             this.velocity.x = THREE.MathUtils.lerp(
                 this.velocity.x,
                 worldMoveDir.x * speed,
-                this.acceleration * deltaTime
+                lerpFactor
             );
             this.velocity.z = THREE.MathUtils.lerp(
                 this.velocity.z,
                 worldMoveDir.z * speed,
-                this.acceleration * deltaTime
+                lerpFactor
             );
             
             // Rotate player to face movement direction (unless locked on)
@@ -388,15 +374,17 @@ export class Player {
             }
         } else {
             // Decelerate
+            // Clamp lerp factor to prevent overshooting when framerate drops
+            const decelFactor = Math.min(1.0, this.deceleration * deltaTime);
             this.velocity.x = THREE.MathUtils.lerp(
                 this.velocity.x,
                 0,
-                this.deceleration * deltaTime
+                decelFactor
             );
             this.velocity.z = THREE.MathUtils.lerp(
                 this.velocity.z,
                 0,
-                this.deceleration * deltaTime
+                decelFactor
             );
             
             if (!this.isBlocking) {
@@ -829,48 +817,23 @@ export class Player {
         return safeGroundHeight + 0.1;
     }
     
-    /**
-     * Helper method to snap position to ground and update grounded state
-     * Returns true if player is grounded
-     */
-    snapToGround(groundLevel) {
-        if (this.position.y <= groundLevel) {
-            this.position.y = groundLevel;
-            if (this.velocity.y <= 0) {
-                this.velocity.y = 0;
-                return true;
-            }
-        }
-        return false;
-    }
-    
     applyGravity(deltaTime) {
-        const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
-        
-        if (this.position.y > groundLevel + this.groundCheckTolerance) {
-            // In the air - apply gravity
+        // Only apply gravity to velocity - actual position update happens in applyMovement
+        // This prevents double-sampling terrain at different positions
+        if (!this.isGrounded) {
             this.velocity.y -= this.gravity * deltaTime;
-            this.isGrounded = false;
-        } else {
-            // On or near ground
-            this.isGrounded = this.snapToGround(groundLevel);
         }
     }
     
     applyMovement(deltaTime) {
-        // Calculate new position
+        // Store previous position for stability checks
+        const prevX = this.position.x;
+        const prevY = this.position.y;
+        const prevZ = this.position.z;
+        
+        // Calculate new horizontal position
         const newX = this.position.x + this.velocity.x * deltaTime;
         const newZ = this.position.z + this.velocity.z * deltaTime;
-        
-        // Sanity check: reject moves that are too large (prevents teleporting)
-        // Using squared distance for efficiency
-        const moveDistanceSquared = (newX - this.position.x) ** 2 + (newZ - this.position.z) ** 2;
-        if (moveDistanceSquared > this.maxMovePerFrameSquared) {
-            // Move is too large, likely a glitch - revert to last valid position
-            this.position.copy(this.lastValidPosition);
-            this.velocity.set(0, 0, 0);
-            return;
-        }
         
         // Get world boundary limit from World.js
         const worldBound = this.game.world.getBoundaryLimit();
@@ -892,35 +855,32 @@ export class Player {
         // Apply vertical velocity
         this.position.y += this.velocity.y * deltaTime;
         
-        // Get ground level at the NEW horizontal position
+        // Now check ground at the NEW horizontal position (single terrain sample per frame)
         const groundLevel = this.getGroundLevelAt(this.position.x, this.position.z);
         
-        // Smooth Y position transition when following terrain (prevents jarring height changes)
-        if (this.isGrounded && this.velocity.y >= 0) {
-            // Update target ground Y
-            this.targetGroundY = groundLevel;
-            
-            // Smoothly lerp to target ground height based on difference thresholds
-            const yDifference = Math.abs(this.targetGroundY - this.position.y);
-            if (yDifference > this.ySnapThreshold) {
-                if (yDifference < this.yLerpThreshold) {
-                    // Snap to ground if very close
-                    this.position.y = this.targetGroundY;
-                } else {
-                    // Use lerp for smooth transition
-                    this.position.y = THREE.MathUtils.lerp(
-                        this.position.y,
-                        this.targetGroundY,
-                        this.groundYLerpSpeed * deltaTime
-                    );
-                }
+        // Check if we're at or below ground level
+        if (this.position.y <= groundLevel) {
+            // Snap to ground
+            this.position.y = groundLevel;
+            if (this.velocity.y <= 0) {
+                this.velocity.y = 0;
             }
+            this.isGrounded = true;
+        } else if (this.position.y > groundLevel + this.groundCheckTolerance) {
+            // We're in the air
+            this.isGrounded = false;
         } else {
-            // If we're at or below ground level, snap to ground
-            if (this.snapToGround(groundLevel)) {
-                this.isGrounded = true;
-                this.targetGroundY = groundLevel;
-            }
+            // We're very close to the ground - snap to it for stability
+            this.position.y = groundLevel;
+            this.velocity.y = 0;
+            this.isGrounded = true;
+        }
+        
+        // Smooth Y position changes to prevent jitter (max height change per frame)
+        const heightDelta = this.position.y - prevY;
+        if (Math.abs(heightDelta) > this.maxHeightChangePerFrame && this.isGrounded) {
+            // Smoothly interpolate towards target height to prevent teleporting on slopes
+            this.position.y = prevY + Math.sign(heightDelta) * this.maxHeightChangePerFrame;
         }
         
         // Prevent falling through the world using defined threshold
@@ -937,16 +897,33 @@ export class Player {
             this.velocity.set(0, 0, 0);
         }
         
-        // Ensure position values are valid numbers
-        if (!Number.isFinite(this.position.x)) this.position.x = 0;
-        if (!Number.isFinite(this.position.y)) this.position.y = 1;
-        if (!Number.isFinite(this.position.z)) this.position.z = 0;
+        // Position stability check: Reject teleports that are too large
+        const moveDistance = Math.sqrt(
+            Math.pow(this.position.x - prevX, 2) +
+            Math.pow(this.position.z - prevZ, 2)
+        );
+        if (moveDistance > this.maxMovePerFrame) {
+            // Reject this move - it's likely a bug
+            this.position.x = prevX;
+            this.position.z = prevZ;
+            this.velocity.x = 0;
+            this.velocity.z = 0;
+        }
         
-        // Clamp Y to reasonable range to prevent extreme values
-        this.position.y = THREE.MathUtils.clamp(this.position.y, this.minYPosition, this.maxYPosition);
+        // Ensure position values are valid numbers (check before overwriting)
+        const xValid = Number.isFinite(this.position.x);
+        const yValid = Number.isFinite(this.position.y);
+        const zValid = Number.isFinite(this.position.z);
         
-        // Store last valid position
-        this.lastValidPosition.copy(this.position);
+        if (!xValid || !yValid || !zValid) {
+            // At least one coordinate is invalid - reset to previous valid position or spawn
+            if (Number.isFinite(prevX) && Number.isFinite(prevY) && Number.isFinite(prevZ)) {
+                this.position.set(prevX, prevY, prevZ);
+            } else {
+                this.position.set(0, 1, 0);
+            }
+            this.velocity.set(0, 0, 0);
+        }
     }
     
     regenerateStamina(deltaTime) {
@@ -990,7 +967,9 @@ export class Player {
             
             behindPlayer.addScaledVector(toTarget, -6);
             
-            camera.position.lerp(behindPlayer, 5 * deltaTime);
+            // Clamp lerp factor to prevent overshooting
+            const cameraLerpFactor = Math.min(1.0, 5 * deltaTime);
+            camera.position.lerp(behindPlayer, cameraLerpFactor);
             
             // Look at midpoint
             const lookTarget = midPoint.clone();
@@ -1017,7 +996,9 @@ export class Player {
             
             // Ensure camera position is valid
             if (Number.isFinite(targetCameraPos.x) && Number.isFinite(targetCameraPos.y) && Number.isFinite(targetCameraPos.z)) {
-                camera.position.lerp(targetCameraPos, 8 * deltaTime);
+                // Clamp lerp factor to prevent overshooting
+                const cameraLerpFactor = Math.min(1.0, 8 * deltaTime);
+                camera.position.lerp(targetCameraPos, cameraLerpFactor);
             }
             
             // Look at player
