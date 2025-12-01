@@ -575,9 +575,15 @@ export class Enemy {
         this.position.x += this.velocity.x * deltaTime;
         this.position.z += this.velocity.z * deltaTime;
         
-        // Get ground height
+        // Get ground height with safety check
         const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
-        this.position.y = groundHeight + 0.1;
+        const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
+        this.position.y = safeGroundHeight + 0.1;
+        
+        // Ensure position values are valid
+        if (!Number.isFinite(this.position.x)) this.position.x = this.spawnPoint.x;
+        if (!Number.isFinite(this.position.y)) this.position.y = this.spawnPoint.y;
+        if (!Number.isFinite(this.position.z)) this.position.z = this.spawnPoint.z;
         
         // Friction
         this.velocity.x *= 0.9;

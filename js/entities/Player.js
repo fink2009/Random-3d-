@@ -793,15 +793,28 @@ export class Player {
     
     applyGravity(deltaTime) {
         const groundHeight = this.game.world.getHeightAt(this.position.x, this.position.z);
-        const groundLevel = groundHeight + 0.1;
         
-        if (this.position.y > groundLevel) {
+        // Ensure groundHeight is a valid number
+        const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
+        const groundLevel = safeGroundHeight + 0.1;
+        
+        if (this.position.y > groundLevel + 0.01) {
+            // Apply gravity when above ground
             this.velocity.y -= this.gravity * deltaTime;
             this.isGrounded = false;
         } else {
+            // Snap to ground and stop falling
             this.position.y = groundLevel;
-            this.velocity.y = 0;
+            if (this.velocity.y < 0) {
+                this.velocity.y = 0;
+            }
             this.isGrounded = true;
+        }
+        
+        // Prevent falling through the world
+        if (this.position.y < -10) {
+            this.position.y = safeGroundHeight + 1;
+            this.velocity.y = 0;
         }
     }
     
@@ -821,6 +834,11 @@ export class Player {
         }
         
         this.position.y += this.velocity.y * deltaTime;
+        
+        // Ensure position values are valid numbers
+        if (!Number.isFinite(this.position.x)) this.position.x = 0;
+        if (!Number.isFinite(this.position.y)) this.position.y = 1;
+        if (!Number.isFinite(this.position.z)) this.position.z = 0;
     }
     
     regenerateStamina(deltaTime) {
@@ -884,11 +902,15 @@ export class Player {
             
             const targetCameraPos = this.position.clone().add(rotatedOffset);
             
-            // Check ground collision for camera
+            // Check ground collision for camera with safety check
             const groundHeight = this.game.world.getHeightAt(targetCameraPos.x, targetCameraPos.z);
-            targetCameraPos.y = Math.max(targetCameraPos.y, groundHeight + 1);
+            const safeGroundHeight = Number.isFinite(groundHeight) ? groundHeight : 0;
+            targetCameraPos.y = Math.max(targetCameraPos.y, safeGroundHeight + 1);
             
-            camera.position.lerp(targetCameraPos, 8 * deltaTime);
+            // Ensure camera position is valid
+            if (Number.isFinite(targetCameraPos.x) && Number.isFinite(targetCameraPos.y) && Number.isFinite(targetCameraPos.z)) {
+                camera.position.lerp(targetCameraPos, 8 * deltaTime);
+            }
             
             // Look at player
             const lookTarget = this.position.clone();
@@ -961,7 +983,14 @@ export class Player {
     updateMesh() {
         if (!this.mesh) return;
         
-        this.mesh.position.copy(this.position);
+        // During rolling, mesh position is managed by updateRoll for animation
+        if (this.state !== 'rolling') {
+            this.mesh.position.copy(this.position);
+        } else {
+            // Only update X and Z, preserve animated Y position
+            this.mesh.position.x = this.position.x;
+            this.mesh.position.z = this.position.z;
+        }
         this.mesh.rotation.y = this.rotation;
     }
     

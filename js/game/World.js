@@ -63,12 +63,13 @@ export class World {
             const x = positions[i];
             const z = positions[i + 1];
             
-            // Get height from height map
+            // Get height from height map with safety clamp
             const height = this.sampleHeightMap(x, z);
-            positions[i + 2] = height;
+            const safeHeight = Number.isFinite(height) ? Math.max(-5, Math.min(50, height)) : 0;
+            positions[i + 2] = safeHeight;
             
             // Assign colors based on height/biome
-            const color = this.getBiomeColor(height, x, z);
+            const color = this.getBiomeColor(safeHeight, x, z);
             colors.push(color.r, color.g, color.b);
         }
         
@@ -94,6 +95,10 @@ export class World {
     generateHeightMap() {
         const size = this.terrainSegments + 1;
         this.heightMap = new Array(size);
+        
+        // Define height bounds for stability
+        const minHeight = -5;
+        const maxHeight = 50;
         
         for (let i = 0; i < size; i++) {
             this.heightMap[i] = new Array(size);
@@ -124,45 +129,69 @@ export class World {
                     height *= 0.3;
                 }
                 
-                this.heightMap[i][j] = height * this.heightScale;
+                // Apply height scale and clamp to prevent extreme values
+                const finalHeight = height * this.heightScale;
+                this.heightMap[i][j] = Math.max(minHeight, Math.min(maxHeight, finalHeight));
             }
         }
     }
     
-    // Simple noise function
+    // Simple noise function with clamping for stability
     noise(x, y) {
-        const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-        return (n - Math.floor(n)) * 2 - 1;
+        // Clamp input values to prevent floating point issues
+        const clampedX = Math.max(-1000, Math.min(1000, x));
+        const clampedY = Math.max(-1000, Math.min(1000, y));
+        const n = Math.sin(clampedX * 12.9898 + clampedY * 78.233) * 43758.5453;
+        const result = (n - Math.floor(n)) * 2 - 1;
+        // Clamp output to [-1, 1] for stability
+        return Math.max(-1, Math.min(1, result));
     }
     
     sampleHeightMap(worldX, worldZ) {
+        // Validate input coordinates
+        if (!Number.isFinite(worldX) || !Number.isFinite(worldZ)) {
+            return 0;
+        }
+        
         // Convert world coordinates to heightmap indices
         const size = this.terrainSegments + 1;
         const i = ((worldX / this.worldSize) + 0.5) * (size - 1);
         const j = ((worldZ / this.worldSize) + 0.5) * (size - 1);
         
-        // Bilinear interpolation
-        const i0 = Math.floor(i);
-        const j0 = Math.floor(j);
+        // Clamp indices to valid range
+        const i0 = Math.max(0, Math.min(size - 2, Math.floor(i)));
+        const j0 = Math.max(0, Math.min(size - 2, Math.floor(j)));
         const i1 = Math.min(i0 + 1, size - 1);
         const j1 = Math.min(j0 + 1, size - 1);
         
-        const fi = i - i0;
-        const fj = j - j0;
+        // Clamp interpolation factors to [0, 1]
+        const fi = Math.max(0, Math.min(1, i - i0));
+        const fj = Math.max(0, Math.min(1, j - j0));
         
-        if (i0 < 0 || i1 >= size || j0 < 0 || j1 >= size) {
+        // Safety check for heightMap existence
+        if (!this.heightMap || !this.heightMap[i0] || !this.heightMap[i1]) {
             return 0;
         }
         
-        const h00 = this.heightMap[i0]?.[j0] || 0;
-        const h10 = this.heightMap[i1]?.[j0] || 0;
-        const h01 = this.heightMap[i0]?.[j1] || 0;
-        const h11 = this.heightMap[i1]?.[j1] || 0;
+        // Get heights with fallback to 0
+        const h00 = this.heightMap[i0][j0] ?? 0;
+        const h10 = this.heightMap[i1][j0] ?? 0;
+        const h01 = this.heightMap[i0][j1] ?? 0;
+        const h11 = this.heightMap[i1][j1] ?? 0;
+        
+        // Validate all heights are finite numbers
+        if (!Number.isFinite(h00) || !Number.isFinite(h10) || 
+            !Number.isFinite(h01) || !Number.isFinite(h11)) {
+            return 0;
+        }
         
         const h0 = h00 * (1 - fi) + h10 * fi;
         const h1 = h01 * (1 - fi) + h11 * fi;
         
-        return h0 * (1 - fj) + h1 * fj;
+        const result = h0 * (1 - fj) + h1 * fj;
+        
+        // Final safety clamp to prevent extreme values
+        return Number.isFinite(result) ? Math.max(-5, Math.min(50, result)) : 0;
     }
     
     getHeightAt(x, z) {
