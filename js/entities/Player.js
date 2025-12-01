@@ -102,6 +102,15 @@ export class Player {
         this.targetGroundY = 0;  // Target Y for smooth terrain following
         this.groundYLerpSpeed = 10;  // How fast to lerp to target ground height
         this.maxMovePerFrame = 10;  // Maximum distance allowed per frame to prevent teleporting
+        this.maxMovePerFrameSquared = this.maxMovePerFrame * this.maxMovePerFrame;  // Squared for efficient distance checks
+        
+        // Y position smoothing thresholds
+        this.ySnapThreshold = 0.01;  // Snap to ground if difference is less than this
+        this.yLerpThreshold = 0.1;   // Use lerp for smooth transition if difference is less than this
+        
+        // Y position bounds
+        this.minYPosition = -5;
+        this.maxYPosition = 500;
         
         // Equipment (affects roll speed, damage, etc.)
         this.equipment = {
@@ -854,11 +863,9 @@ export class Player {
         const newZ = this.position.z + this.velocity.z * deltaTime;
         
         // Sanity check: reject moves that are too large (prevents teleporting)
-        const moveDistance = Math.sqrt(
-            Math.pow(newX - this.position.x, 2) + 
-            Math.pow(newZ - this.position.z, 2)
-        );
-        if (moveDistance > this.maxMovePerFrame) {
+        // Using squared distance for efficiency
+        const moveDistanceSquared = (newX - this.position.x) ** 2 + (newZ - this.position.z) ** 2;
+        if (moveDistanceSquared > this.maxMovePerFrameSquared) {
             // Move is too large, likely a glitch - revert to last valid position
             this.position.copy(this.lastValidPosition);
             this.velocity.set(0, 0, 0);
@@ -893,13 +900,14 @@ export class Player {
             // Update target ground Y
             this.targetGroundY = groundLevel;
             
-            // Smoothly lerp to target ground height
+            // Smoothly lerp to target ground height based on difference thresholds
             const yDifference = Math.abs(this.targetGroundY - this.position.y);
-            if (yDifference > 0.01) {
-                // Use lerp for smooth transition, but snap if very close
-                if (yDifference < 0.1) {
+            if (yDifference > this.ySnapThreshold) {
+                if (yDifference < this.yLerpThreshold) {
+                    // Snap to ground if very close
                     this.position.y = this.targetGroundY;
                 } else {
+                    // Use lerp for smooth transition
                     this.position.y = THREE.MathUtils.lerp(
                         this.position.y,
                         this.targetGroundY,
@@ -935,7 +943,7 @@ export class Player {
         if (!Number.isFinite(this.position.z)) this.position.z = 0;
         
         // Clamp Y to reasonable range to prevent extreme values
-        this.position.y = THREE.MathUtils.clamp(this.position.y, -5, 500);
+        this.position.y = THREE.MathUtils.clamp(this.position.y, this.minYPosition, this.maxYPosition);
         
         // Store last valid position
         this.lastValidPosition.copy(this.position);
