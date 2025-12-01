@@ -97,6 +97,10 @@ export class Player {
         this.groundCheckTolerance = 0.01;
         this.fallThroughThreshold = -10;
         
+        // Position stability constants
+        this.maxHeightChangePerFrame = 2.0; // Max vertical movement per frame when grounded
+        this.maxMovePerFrame = 10.0; // Max horizontal distance per frame (prevents teleporting)
+        
         // Equipment (affects roll speed, damage, etc.)
         this.equipment = {
             weapon: { 
@@ -888,11 +892,10 @@ export class Player {
         }
         
         // Smooth Y position changes to prevent jitter (max height change per frame)
-        const maxHeightChangePerFrame = 2.0; // Max units the player can move vertically per frame
         const heightDelta = this.position.y - prevY;
-        if (Math.abs(heightDelta) > maxHeightChangePerFrame && this.isGrounded) {
+        if (Math.abs(heightDelta) > this.maxHeightChangePerFrame && this.isGrounded) {
             // Smoothly interpolate towards target height to prevent teleporting on slopes
-            this.position.y = prevY + Math.sign(heightDelta) * maxHeightChangePerFrame;
+            this.position.y = prevY + Math.sign(heightDelta) * this.maxHeightChangePerFrame;
         }
         
         // Prevent falling through the world using defined threshold
@@ -910,12 +913,11 @@ export class Player {
         }
         
         // Position stability check: Reject teleports that are too large
-        const maxMovePerFrame = 10.0; // Maximum distance player can move in one frame
         const moveDistance = Math.sqrt(
             Math.pow(this.position.x - prevX, 2) +
             Math.pow(this.position.z - prevZ, 2)
         );
-        if (moveDistance > maxMovePerFrame) {
+        if (moveDistance > this.maxMovePerFrame) {
             // Reject this move - it's likely a bug
             this.position.x = prevX;
             this.position.z = prevZ;
@@ -923,16 +925,18 @@ export class Player {
             this.velocity.z = 0;
         }
         
-        // Ensure position values are valid numbers
-        if (!Number.isFinite(this.position.x)) this.position.x = prevX;
-        if (!Number.isFinite(this.position.y)) this.position.y = prevY;
-        if (!Number.isFinite(this.position.z)) this.position.z = prevZ;
+        // Ensure position values are valid numbers (check before overwriting)
+        const xValid = Number.isFinite(this.position.x);
+        const yValid = Number.isFinite(this.position.y);
+        const zValid = Number.isFinite(this.position.z);
         
-        // If all values were invalid, reset to spawn
-        if (!Number.isFinite(this.position.x) || 
-            !Number.isFinite(this.position.y) || 
-            !Number.isFinite(this.position.z)) {
-            this.position.set(0, 1, 0);
+        if (!xValid || !yValid || !zValid) {
+            // At least one coordinate is invalid - reset to previous valid position or spawn
+            if (Number.isFinite(prevX) && Number.isFinite(prevY) && Number.isFinite(prevZ)) {
+                this.position.set(prevX, prevY, prevZ);
+            } else {
+                this.position.set(0, 1, 0);
+            }
             this.velocity.set(0, 0, 0);
         }
     }
