@@ -71,6 +71,47 @@ export class Game {
         this.frameCount = 0;
         this.fps = 0;
         this.lastFpsUpdate = 0;
+        
+        // Quality settings for performance optimization
+        this.qualitySettings = {
+            low: {
+                shadowMapSize: 512,
+                shadowsEnabled: false,
+                particleCount: 50,
+                drawDistance: 100,
+                postProcessing: false,
+                terrainDetail: 64,
+                pixelRatio: 1,
+                environmentParticles: 100,
+                maxFireflies: 20
+            },
+            medium: {
+                shadowMapSize: 1024,
+                shadowsEnabled: true,
+                particleCount: 100,
+                drawDistance: 200,
+                postProcessing: true,
+                terrainDetail: 128,
+                pixelRatio: 1.5,
+                environmentParticles: 250,
+                maxFireflies: 50
+            },
+            high: {
+                shadowMapSize: 2048,
+                shadowsEnabled: true,
+                particleCount: 200,
+                drawDistance: 400,
+                postProcessing: true,
+                terrainDetail: 128,
+                pixelRatio: 2,
+                environmentParticles: 500,
+                maxFireflies: 100
+            }
+        };
+        
+        // Current quality level
+        this.currentQuality = 'medium';
+        this.settings = this.qualitySettings[this.currentQuality];
     }
     
     init() {
@@ -94,19 +135,31 @@ export class Game {
     }
     
     setupRenderer() {
+        // Disable antialias in WebGL for performance (use post-process AA instead)
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: true,
+            antialias: false,
             powerPreference: 'high-performance'
         });
         
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        // Cap pixel ratio based on quality settings for performance
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.settings.pixelRatio));
+        
+        // Shadow settings based on quality
+        this.renderer.shadowMap.enabled = this.settings.shadowsEnabled;
+        if (this.settings.shadowsEnabled) {
+            // Use cheaper shadow map type for better performance
+            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        }
+        
+        // Use simpler tone mapping for performance
+        this.renderer.toneMapping = THREE.LinearToneMapping;
         this.renderer.toneMappingExposure = 1.0;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        
+        // Disable auto clear for manual render pass control
+        this.renderer.autoClear = true;
     }
     
     setupScene() {
@@ -129,18 +182,29 @@ export class Game {
         this.ambientLight = new THREE.AmbientLight(0x404060, 0.4);
         this.scene.add(this.ambientLight);
         
-        // Directional light (sun/moon)
+        // Directional light (sun/moon) with optimized shadow settings
         this.directionalLight = new THREE.DirectionalLight(0xffeedd, 1.0);
         this.directionalLight.position.set(50, 100, 50);
-        this.directionalLight.castShadow = true;
-        this.directionalLight.shadow.mapSize.width = 2048;
-        this.directionalLight.shadow.mapSize.height = 2048;
-        this.directionalLight.shadow.camera.near = 0.5;
-        this.directionalLight.shadow.camera.far = 500;
-        this.directionalLight.shadow.camera.left = -100;
-        this.directionalLight.shadow.camera.right = 100;
-        this.directionalLight.shadow.camera.top = 100;
-        this.directionalLight.shadow.camera.bottom = -100;
+        
+        // Only set up shadows if enabled in settings
+        if (this.settings.shadowsEnabled) {
+            this.directionalLight.castShadow = true;
+            // Use quality-based shadow map size
+            this.directionalLight.shadow.mapSize.width = this.settings.shadowMapSize;
+            this.directionalLight.shadow.mapSize.height = this.settings.shadowMapSize;
+            // Tighten shadow camera frustum for better shadow quality at lower resolution
+            this.directionalLight.shadow.camera.near = 1;
+            this.directionalLight.shadow.camera.far = 150;
+            this.directionalLight.shadow.camera.left = -60;
+            this.directionalLight.shadow.camera.right = 60;
+            this.directionalLight.shadow.camera.top = 60;
+            this.directionalLight.shadow.camera.bottom = -60;
+            // Reduce shadow bias for less artifacts
+            this.directionalLight.shadow.bias = -0.001;
+        } else {
+            this.directionalLight.castShadow = false;
+        }
+        
         this.scene.add(this.directionalLight);
         
         // Hemisphere light for natural sky lighting
@@ -149,17 +213,23 @@ export class Game {
     }
     
     setupPostProcessing() {
+        // Only set up post-processing if enabled in settings
+        if (!this.settings.postProcessing) {
+            this.composer = null;
+            return;
+        }
+        
         this.composer = new EffectComposer(this.renderer);
         
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
         
-        // Bloom effect for light sources
+        // Bloom effect for light sources - reduced settings for performance
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            0.5,  // strength
-            0.4,  // radius
-            0.85  // threshold
+            0.3,  // strength (reduced from 0.5)
+            0.3,  // radius (reduced from 0.4)
+            0.9   // threshold (increased from 0.85 - less bloom)
         );
         this.composer.addPass(bloomPass);
     }
@@ -322,7 +392,9 @@ export class Game {
         this.camera.updateProjectionMatrix();
         
         this.renderer.setSize(width, height);
-        this.composer.setSize(width, height);
+        if (this.composer) {
+            this.composer.setSize(width, height);
+        }
     }
     
     animate() {
@@ -347,67 +419,105 @@ export class Game {
     }
     
     update() {
-        // Update visual effects (handles day/night cycle now)
-        if (this.visualEffects) {
-            this.visualEffects.update(this.deltaTime);
-        }
+        // Staggered updates for performance optimization
+        const frame = this.frameCount;
         
-        // Update player
+        // Update player every frame (critical)
         if (this.player) {
             this.player.update(this.deltaTime);
         }
         
-        // Update enemies
-        this.enemies.forEach(enemy => {
-            if (enemy.isAlive) {
-                enemy.update(this.deltaTime);
-            }
-        });
+        // Update combat system every frame (critical for responsiveness)
+        this.combatSystem.update(this.deltaTime);
         
-        // Update bosses
+        // Update enemies with distance-based staggering
+        this.updateEnemies(this.deltaTime);
+        
+        // Update bosses every frame (important for boss fights)
         this.bosses.forEach(boss => {
             if (boss.isAlive) {
                 boss.update(this.deltaTime);
             }
         });
         
-        // Update combat system
-        this.combatSystem.update(this.deltaTime);
-        
-        // Update magic system
-        if (this.magicSystem) {
-            this.magicSystem.update(this.deltaTime);
-        }
-        
-        // Update inventory system
-        if (this.inventorySystem) {
-            this.inventorySystem.update(this.deltaTime);
-        }
-        
-        // Update NPC system
-        if (this.npcSystem) {
-            this.npcSystem.update(this.deltaTime);
-        }
-        
-        // Update save system
-        if (this.saveSystem) {
-            this.saveSystem.update(this.deltaTime);
-        }
-        
-        // Update particles
+        // Update particles every frame
         this.particleSystem.update(this.deltaTime);
         
-        // Update HUD
-        this.hud.update();
+        // Update visual effects every 2nd frame
+        if (frame % 2 === 0 && this.visualEffects) {
+            this.visualEffects.update(this.deltaTime * 2);
+        }
         
-        // Update checkpoints
-        this.checkpointSystem.update(this.deltaTime);
+        // Update magic system every 2nd frame
+        if (frame % 2 === 1 && this.magicSystem) {
+            this.magicSystem.update(this.deltaTime * 2);
+        }
         
-        // Update progression system (souls pickup, dropped souls animation)
-        this.progressionSystem.update(this.deltaTime);
+        // Update inventory system every 5th frame
+        if (frame % 5 === 0 && this.inventorySystem) {
+            this.inventorySystem.update(this.deltaTime * 5);
+        }
         
-        // Clean up dead entities
-        this.cleanupEntities();
+        // Update NPC system every 3rd frame
+        if (frame % 3 === 0 && this.npcSystem) {
+            this.npcSystem.update(this.deltaTime * 3);
+        }
+        
+        // Update save system every 10th frame
+        if (frame % 10 === 0 && this.saveSystem) {
+            this.saveSystem.update(this.deltaTime * 10);
+        }
+        
+        // Update HUD every 3rd frame
+        if (frame % 3 === 0) {
+            this.hud.update();
+        }
+        
+        // Update checkpoints every 5th frame
+        if (frame % 5 === 0) {
+            this.checkpointSystem.update(this.deltaTime * 5);
+        }
+        
+        // Update progression system every 2nd frame
+        if (frame % 2 === 0) {
+            this.progressionSystem.update(this.deltaTime * 2);
+        }
+        
+        // Clean up dead entities every 10th frame
+        if (frame % 10 === 0) {
+            this.cleanupEntities();
+        }
+    }
+    
+    updateEnemies(deltaTime) {
+        const playerPos = this.player ? this.player.position : null;
+        if (!playerPos) return;
+        
+        const nearDistance = 30;
+        const farDistance = 60;
+        
+        this.enemies.forEach((enemy, index) => {
+            if (!enemy.isAlive) return;
+            
+            const distance = enemy.position.distanceTo(playerPos);
+            
+            if (distance < nearDistance) {
+                // Update nearby enemies every frame
+                enemy.update(deltaTime);
+            } else if (distance < farDistance) {
+                // Update mid-range enemies every 2nd frame
+                // Use regular deltaTime to avoid choppy movement
+                if ((this.frameCount + index) % 2 === 0) {
+                    enemy.update(deltaTime);
+                }
+            } else {
+                // Update distant enemies every 4th frame
+                // Distant enemies don't need smooth updates
+                if ((this.frameCount + index) % 4 === 0) {
+                    enemy.update(deltaTime);
+                }
+            }
+        });
     }
     
     updateDayNightCycle() {
@@ -460,7 +570,12 @@ export class Game {
     }
     
     render() {
-        this.composer.render();
+        // Use composer if post-processing is enabled, otherwise direct render
+        if (this.composer && this.settings.postProcessing) {
+            this.composer.render();
+        } else {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
     
     pause() {
@@ -520,5 +635,44 @@ export class Game {
     // Utility method to get height at world position
     getHeightAt(x, z) {
         return this.world.getHeightAt(x, z);
+    }
+    
+    /**
+     * Apply quality settings for performance optimization
+     * @param {string} level - 'low', 'medium', or 'high'
+     */
+    applyQualitySettings(level) {
+        if (!this.qualitySettings[level]) {
+            console.warn(`Unknown quality level: ${level}`);
+            return;
+        }
+        
+        this.currentQuality = level;
+        this.settings = this.qualitySettings[level];
+        
+        // Apply renderer settings
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.settings.pixelRatio));
+        this.renderer.shadowMap.enabled = this.settings.shadowsEnabled;
+        
+        // Apply shadow settings
+        if (this.directionalLight) {
+            this.directionalLight.castShadow = this.settings.shadowsEnabled;
+            if (this.settings.shadowsEnabled) {
+                this.directionalLight.shadow.mapSize.width = this.settings.shadowMapSize;
+                this.directionalLight.shadow.mapSize.height = this.settings.shadowMapSize;
+            }
+        }
+        
+        // Update particle system settings
+        if (this.particleSystem) {
+            this.particleSystem.maxParticles = this.settings.particleCount;
+        }
+        
+        // Update visual effects settings
+        if (this.visualEffects) {
+            this.visualEffects.applyQualitySettings(this.settings);
+        }
+        
+        console.log(`Quality settings applied: ${level}`);
     }
 }

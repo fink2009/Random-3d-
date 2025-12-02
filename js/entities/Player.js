@@ -135,66 +135,64 @@ export class Player {
         // Create a simple character model
         const group = new THREE.Group();
         
-        // Body
-        const bodyGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 8, 16);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a4a5a,
-            roughness: 0.7,
-            metalness: 0.3
+        // PERFORMANCE: Check if shadows are enabled
+        const shadowsEnabled = this.game.settings?.shadowsEnabled !== false;
+        
+        // Body - use Lambert for better performance
+        const bodyGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 6, 12);
+        const bodyMaterial = new THREE.MeshLambertMaterial({
+            color: 0x4a4a5a
         });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.position.y = 1;
-        body.castShadow = true;
+        body.castShadow = shadowsEnabled;
         group.add(body);
         
-        // Head
-        const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-        const headMaterial = new THREE.MeshStandardMaterial({
-            color: 0xd4a574,
-            roughness: 0.8
+        // Head - reduced segments
+        const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+        const headMaterial = new THREE.MeshLambertMaterial({
+            color: 0xd4a574
         });
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.y = 1.85;
-        head.castShadow = true;
+        head.castShadow = false; // Small parts don't cast shadows
         group.add(head);
         
-        // Arms
-        const armGeometry = new THREE.CapsuleGeometry(0.12, 0.6, 4, 8);
-        const armMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a4a5a,
-            roughness: 0.7
+        // Arms - reduced segments
+        const armGeometry = new THREE.CapsuleGeometry(0.12, 0.6, 4, 6);
+        const armMaterial = new THREE.MeshLambertMaterial({
+            color: 0x4a4a5a
         });
         
         const leftArm = new THREE.Mesh(armGeometry, armMaterial);
         leftArm.position.set(-0.5, 1.2, 0);
         leftArm.rotation.z = 0.3;
-        leftArm.castShadow = true;
+        leftArm.castShadow = false;
         group.add(leftArm);
         
         const rightArm = new THREE.Mesh(armGeometry, armMaterial);
         rightArm.position.set(0.5, 1.2, 0);
         rightArm.rotation.z = -0.3;
-        rightArm.castShadow = true;
+        rightArm.castShadow = false;
         group.add(rightArm);
         
         // Legs
-        const legGeometry = new THREE.CapsuleGeometry(0.15, 0.5, 4, 8);
+        const legGeometry = new THREE.CapsuleGeometry(0.15, 0.5, 4, 6);
         
         const leftLeg = new THREE.Mesh(legGeometry, armMaterial);
         leftLeg.position.set(-0.2, 0.35, 0);
-        leftLeg.castShadow = true;
+        leftLeg.castShadow = false;
         group.add(leftLeg);
         
         const rightLeg = new THREE.Mesh(legGeometry, armMaterial);
         rightLeg.position.set(0.2, 0.35, 0);
-        rightLeg.castShadow = true;
+        rightLeg.castShadow = false;
         group.add(rightLeg);
         
         // Cape/cloak for that Soulsborne aesthetic
         const capeGeometry = new THREE.PlaneGeometry(0.8, 1.2);
-        const capeMaterial = new THREE.MeshStandardMaterial({
+        const capeMaterial = new THREE.MeshLambertMaterial({
             color: 0x2a2a3a,
-            roughness: 0.9,
             side: THREE.DoubleSide
         });
         const cape = new THREE.Mesh(capeGeometry, capeMaterial);
@@ -207,25 +205,22 @@ export class Player {
     }
     
     createWeapon() {
-        // Simple sword
+        // Simple sword - using Lambert materials for performance
         const group = new THREE.Group();
         
         // Blade
         const bladeGeometry = new THREE.BoxGeometry(0.08, 1.2, 0.02);
-        const bladeMaterial = new THREE.MeshStandardMaterial({
-            color: 0xc0c0c0,
-            roughness: 0.3,
-            metalness: 0.9
+        const bladeMaterial = new THREE.MeshLambertMaterial({
+            color: 0xc0c0c0
         });
         const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
         blade.position.y = 0.6;
         group.add(blade);
         
-        // Handle
-        const handleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.25, 8);
-        const handleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a3020,
-            roughness: 0.8
+        // Handle - reduced segments
+        const handleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.25, 6);
+        const handleMaterial = new THREE.MeshLambertMaterial({
+            color: 0x4a3020
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
         handle.position.y = -0.1;

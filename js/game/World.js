@@ -1,6 +1,7 @@
 /**
  * World.js - Terrain and Environment Generation
  * Creates seamless open world with varied terrain
+ * PERFORMANCE OPTIMIZED: Uses instanced meshes and height caching
  */
 
 import * as THREE from 'three';
@@ -10,9 +11,10 @@ export class World {
         this.game = game;
         this.scene = game.scene;
         
-        // Terrain settings
+        // Terrain settings - use quality settings if available
         this.worldSize = 500;
-        this.terrainSegments = 128;
+        const settings = game.settings || {};
+        this.terrainSegments = settings.terrainDetail || 128;
         this.heightScale = 20; // Reduced for smoother terrain
         
         // Height bounds for terrain stability - more conservative range
@@ -35,10 +37,21 @@ export class World {
         this.terrain = null;
         this.heightMap = [];
         
-        // Environment objects
+        // Height cache for performance optimization
+        this.heightCache = new Map();
+        this.heightCacheMaxSize = 10000;
+        // Cache precision: higher value = more cache hits but less precision
+        this.heightCachePrecision = 2;
+        
+        // Environment objects - now using instanced meshes
         this.trees = [];
         this.rocks = [];
         this.structures = [];
+        
+        // Instanced meshes for performance
+        this.instancedTrees = null;
+        this.instancedRocks = null;
+        this.instancedGrass = null;
         
         // Biome colors
         this.biomes = {
@@ -52,10 +65,10 @@ export class World {
     
     generate() {
         this.generateTerrain();
-        this.generateTrees();
-        this.generateRocks();
+        this.generateInstancedTrees();
+        this.generateInstancedRocks();
         this.generateRuins();
-        this.generateDecorations();
+        this.generateInstancedGrass();
         this.createSkybox();
     }
     
@@ -101,11 +114,9 @@ export class World {
         
         geometry.computeVertexNormals();
         
-        // Create terrain material
-        const material = new THREE.MeshStandardMaterial({
+        // Create terrain material - use Lambert for performance (simpler lighting)
+        const material = new THREE.MeshLambertMaterial({
             vertexColors: true,
-            roughness: 0.9,
-            metalness: 0.1,
             flatShading: false,
             side: THREE.DoubleSide  // Render both sides to ensure terrain is always visible
         });
@@ -113,7 +124,8 @@ export class World {
         // Create mesh
         this.terrain = new THREE.Mesh(geometry, material);
         this.terrain.rotation.x = -Math.PI / 2;
-        this.terrain.receiveShadow = true;
+        // Only receive shadows if enabled in settings
+        this.terrain.receiveShadow = this.game.settings?.shadowsEnabled !== false;
         this.terrain.castShadow = false;
         this.scene.add(this.terrain);
     }
@@ -300,7 +312,30 @@ export class World {
     }
     
     getHeightAt(x, z) {
-        return this.sampleHeightMap(x, z);
+        // Use cached height lookup for performance
+        const precision = this.heightCachePrecision;
+        const key = `${Math.floor(x * precision)},${Math.floor(z * precision)}`;
+        
+        if (this.heightCache.has(key)) {
+            return this.heightCache.get(key);
+        }
+        
+        const height = this.sampleHeightMap(x, z);
+        
+        // Cache the result, limiting cache size
+        if (this.heightCache.size >= this.heightCacheMaxSize) {
+            // Remove oldest entry (first key)
+            const firstKey = this.heightCache.keys().next().value;
+            this.heightCache.delete(firstKey);
+        }
+        this.heightCache.set(key, height);
+        
+        return height;
+    }
+    
+    // Clear height cache (useful when terrain changes)
+    clearHeightCache() {
+        this.heightCache.clear();
     }
     
     getBiomeColor(height, x, z) {
@@ -332,10 +367,43 @@ export class World {
         return color;
     }
     
-    generateTrees() {
-        const treeCount = 200;
+    /**
+     * PERFORMANCE: Generate trees using instanced meshes (single draw call)
+     */
+    generateInstancedTrees() {
+        const treeCount = 150; // Reduced from 200 for performance
         
-        for (let i = 0; i < treeCount; i++) {
+        // Create shared geometries for tree parts
+        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 6);
+        const trunkMaterial = new THREE.MeshLambertMaterial({
+            color: 0x4a3728
+        });
+        
+        const foliageGeometry = new THREE.ConeGeometry(2, 5, 6);
+        const foliageMaterial = new THREE.MeshLambertMaterial({
+            color: 0x2d5a2d
+        });
+        
+        // Create instanced meshes
+        this.instancedTreeTrunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, treeCount);
+        this.instancedTreeFoliage = new THREE.InstancedMesh(foliageGeometry, foliageMaterial, treeCount);
+        
+        // Only cast shadows if enabled in settings
+        const shadowsEnabled = this.game.settings?.shadowsEnabled !== false;
+        this.instancedTreeTrunks.castShadow = shadowsEnabled;
+        this.instancedTreeFoliage.castShadow = shadowsEnabled;
+        
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        
+        let instanceIndex = 0;
+        let attempts = 0;
+        const maxAttempts = treeCount * 3;
+        
+        while (instanceIndex < treeCount && attempts < maxAttempts) {
+            attempts++;
             const x = (Math.random() - 0.5) * this.worldSize * 0.8;
             const z = (Math.random() - 0.5) * this.worldSize * 0.8;
             const y = this.getHeightAt(x, z);
@@ -343,111 +411,88 @@ export class World {
             // Don't place trees on steep slopes or very high areas
             if (y > 20 || y < 1) continue;
             
-            this.createTree(x, y, z);
+            const rotY = Math.random() * Math.PI * 2;
+            const treeScale = 0.7 + Math.random() * 0.6;
+            
+            // Set trunk transform
+            position.set(x, y + 2 * treeScale, z);
+            quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+            scale.set(treeScale, treeScale, treeScale);
+            matrix.compose(position, quaternion, scale);
+            this.instancedTreeTrunks.setMatrixAt(instanceIndex, matrix);
+            
+            // Set foliage transform
+            position.set(x, y + 6 * treeScale, z);
+            matrix.compose(position, quaternion, scale);
+            this.instancedTreeFoliage.setMatrixAt(instanceIndex, matrix);
+            
+            // Store position for collision detection
+            this.trees.push({ position: new THREE.Vector3(x, y, z) });
+            
+            instanceIndex++;
         }
+        
+        // Update instance count to actual number placed
+        this.instancedTreeTrunks.count = instanceIndex;
+        this.instancedTreeFoliage.count = instanceIndex;
+        
+        this.instancedTreeTrunks.instanceMatrix.needsUpdate = true;
+        this.instancedTreeFoliage.instanceMatrix.needsUpdate = true;
+        
+        this.scene.add(this.instancedTreeTrunks);
+        this.scene.add(this.instancedTreeFoliage);
     }
     
-    createTree(x, y, z) {
-        const group = new THREE.Group();
+    /**
+     * PERFORMANCE: Generate rocks using instanced meshes (single draw call)
+     */
+    generateInstancedRocks() {
+        const rockCount = 100; // Reduced from 150 for performance
         
-        // Trunk
-        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 8);
-        const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a3728,
-            roughness: 0.9
-        });
-        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = 2;
-        trunk.castShadow = true;
-        group.add(trunk);
-        
-        // Foliage - multiple cones for fuller look
-        const foliageMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2d5a2d,
-            roughness: 0.8
+        // Create shared geometry for rocks
+        const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+        const rockMaterial = new THREE.MeshLambertMaterial({
+            color: 0x5a5a5a
         });
         
-        const foliage1 = new THREE.Mesh(
-            new THREE.ConeGeometry(2.5, 4, 8),
-            foliageMaterial
-        );
-        foliage1.position.y = 5;
-        foliage1.castShadow = true;
-        group.add(foliage1);
+        this.instancedRocks = new THREE.InstancedMesh(rockGeometry, rockMaterial, rockCount);
         
-        const foliage2 = new THREE.Mesh(
-            new THREE.ConeGeometry(2, 3, 8),
-            foliageMaterial
-        );
-        foliage2.position.y = 7;
-        foliage2.castShadow = true;
-        group.add(foliage2);
+        // Only cast shadows if enabled in settings
+        const shadowsEnabled = this.game.settings?.shadowsEnabled !== false;
+        this.instancedRocks.castShadow = shadowsEnabled;
+        this.instancedRocks.receiveShadow = shadowsEnabled;
         
-        const foliage3 = new THREE.Mesh(
-            new THREE.ConeGeometry(1.5, 2.5, 8),
-            foliageMaterial
-        );
-        foliage3.position.y = 8.5;
-        foliage3.castShadow = true;
-        group.add(foliage3);
-        
-        // Random rotation and scale
-        group.rotation.y = Math.random() * Math.PI * 2;
-        const scale = 0.7 + Math.random() * 0.6;
-        group.scale.set(scale, scale, scale);
-        
-        group.position.set(x, y, z);
-        this.scene.add(group);
-        this.trees.push(group);
-    }
-    
-    generateRocks() {
-        const rockCount = 150;
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        const euler = new THREE.Euler();
         
         for (let i = 0; i < rockCount; i++) {
             const x = (Math.random() - 0.5) * this.worldSize * 0.9;
             const z = (Math.random() - 0.5) * this.worldSize * 0.9;
             const y = this.getHeightAt(x, z);
             
-            this.createRock(x, y, z);
+            const rockScale = 0.5 + Math.random() * 2;
+            
+            position.set(x, y + rockScale * 0.5, z);
+            euler.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            quaternion.setFromEuler(euler);
+            scale.set(rockScale, rockScale * 0.7, rockScale);
+            
+            matrix.compose(position, quaternion, scale);
+            this.instancedRocks.setMatrixAt(i, matrix);
+            
+            // Store position for collision detection
+            this.rocks.push({ position: new THREE.Vector3(x, y, z) });
         }
-    }
-    
-    createRock(x, y, z) {
-        const geometry = new THREE.DodecahedronGeometry(
-            0.5 + Math.random() * 2,
-            0
-        );
         
-        // Deform slightly for natural look
-        const positions = geometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i] += (Math.random() - 0.5) * 0.3;
-            positions[i + 1] += (Math.random() - 0.5) * 0.3;
-            positions[i + 2] += (Math.random() - 0.5) * 0.3;
-        }
-        // Mark position attribute as needing update after modification
-        geometry.attributes.position.needsUpdate = true;
-        geometry.computeVertexNormals();
-        
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x5a5a5a + Math.random() * 0x202020,
-            roughness: 0.9,
-            metalness: 0.1
-        });
-        
-        const rock = new THREE.Mesh(geometry, material);
-        rock.position.set(x, y + 0.5, z);
-        rock.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        
-        this.scene.add(rock);
-        this.rocks.push(rock);
+        this.instancedRocks.instanceMatrix.needsUpdate = true;
+        this.scene.add(this.instancedRocks);
     }
     
     generateRuins() {
@@ -558,31 +603,57 @@ export class World {
         }
     }
     
-    generateDecorations() {
-        // Add grass patches, small plants, etc.
-        const grassCount = 500;
-        const grassMaterial = new THREE.MeshStandardMaterial({
+    /**
+     * PERFORMANCE: Generate grass using instanced meshes (single draw call)
+     */
+    generateInstancedGrass() {
+        // Get grass count from quality settings
+        const grassCount = this.game.settings?.environmentParticles || 250;
+        
+        // Create shared geometry and material for grass
+        const grassGeometry = new THREE.PlaneGeometry(0.3, 0.5);
+        const grassMaterial = new THREE.MeshLambertMaterial({
             color: 0x4a7a3a,
-            roughness: 0.9,
             side: THREE.DoubleSide
         });
         
-        for (let i = 0; i < grassCount; i++) {
+        this.instancedGrass = new THREE.InstancedMesh(grassGeometry, grassMaterial, grassCount);
+        this.instancedGrass.castShadow = false; // Grass doesn't cast shadows for performance
+        this.instancedGrass.receiveShadow = false;
+        
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        
+        let instanceIndex = 0;
+        let attempts = 0;
+        const maxAttempts = grassCount * 2;
+        
+        while (instanceIndex < grassCount && attempts < maxAttempts) {
+            attempts++;
             const x = (Math.random() - 0.5) * this.worldSize * 0.8;
             const z = (Math.random() - 0.5) * this.worldSize * 0.8;
             const y = this.getHeightAt(x, z);
             
             if (y > 18) continue; // No grass on mountains
             
-            // Simple grass blade
-            const grass = new THREE.Mesh(
-                new THREE.PlaneGeometry(0.3, 0.5 + Math.random() * 0.3),
-                grassMaterial
-            );
-            grass.position.set(x, y + 0.25, z);
-            grass.rotation.y = Math.random() * Math.PI;
-            this.scene.add(grass);
+            const grassHeight = 1 + Math.random() * 0.6;
+            const rotY = Math.random() * Math.PI;
+            
+            position.set(x, y + 0.25 * grassHeight, z);
+            quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+            scale.set(1, grassHeight, 1);
+            
+            matrix.compose(position, quaternion, scale);
+            this.instancedGrass.setMatrixAt(instanceIndex, matrix);
+            
+            instanceIndex++;
         }
+        
+        this.instancedGrass.count = instanceIndex;
+        this.instancedGrass.instanceMatrix.needsUpdate = true;
+        this.scene.add(this.instancedGrass);
     }
     
     createSkybox() {

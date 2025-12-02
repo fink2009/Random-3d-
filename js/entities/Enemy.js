@@ -132,47 +132,45 @@ export class Enemy {
                 break;
         }
         
-        // Body
-        const bodyGeometry = new THREE.CapsuleGeometry(0.4 * size, 1.2 * size, 8, 16);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: bodyColor,
-            roughness: 0.8,
-            metalness: 0.2
+        // PERFORMANCE: Check if shadows are enabled
+        const shadowsEnabled = this.game.settings?.shadowsEnabled !== false;
+        
+        // Body - use Lambert for better performance
+        const bodyGeometry = new THREE.CapsuleGeometry(0.4 * size, 1.2 * size, 6, 12);
+        const bodyMaterial = new THREE.MeshLambertMaterial({
+            color: bodyColor
         });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.position.y = 1 * size;
-        body.castShadow = true;
+        body.castShadow = shadowsEnabled;
         group.add(body);
         
-        // Head
-        const headGeometry = new THREE.SphereGeometry(0.25 * size, 16, 16);
-        const headMaterial = new THREE.MeshStandardMaterial({
+        // Head - reduced segments
+        const headGeometry = new THREE.SphereGeometry(0.25 * size, 8, 8);
+        const headMaterial = new THREE.MeshLambertMaterial({
             color: 0x333333,
-            roughness: 0.8,
             emissive: 0x330000,
             emissiveIntensity: 0.3
         });
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.y = 1.85 * size;
-        head.castShadow = true;
+        head.castShadow = false; // Small objects don't cast shadows
         group.add(head);
         
-        // Eyes (glowing red)
-        const eyeMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
-            emissiveIntensity: 0.8
+        // Eyes (glowing red) - reduced segments
+        const eyeMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000
         });
         
         const leftEye = new THREE.Mesh(
-            new THREE.SphereGeometry(0.05 * size, 8, 8),
+            new THREE.SphereGeometry(0.05 * size, 4, 4),
             eyeMaterial
         );
         leftEye.position.set(-0.1 * size, 1.9 * size, 0.2 * size);
         group.add(leftEye);
         
         const rightEye = new THREE.Mesh(
-            new THREE.SphereGeometry(0.05 * size, 8, 8),
+            new THREE.SphereGeometry(0.05 * size, 4, 4),
             eyeMaterial
         );
         rightEye.position.set(0.1 * size, 1.9 * size, 0.2 * size);
@@ -183,15 +181,13 @@ export class Enemy {
             const weaponSize = this.type === 'heavy' ? 1.5 : 1;
             const weapon = new THREE.Mesh(
                 new THREE.BoxGeometry(0.1 * weaponSize, 1.5 * weaponSize, 0.05 * weaponSize),
-                new THREE.MeshStandardMaterial({
-                    color: 0x555555,
-                    roughness: 0.4,
-                    metalness: 0.8
+                new THREE.MeshLambertMaterial({
+                    color: 0x555555
                 })
             );
             weapon.position.set(0.5 * size, 1 * size, 0);
             weapon.rotation.z = -0.5;
-            weapon.castShadow = true;
+            weapon.castShadow = false; // Weapons don't cast shadows
             group.add(weapon);
             this.weaponMesh = weapon;
         }

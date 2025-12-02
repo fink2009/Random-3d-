@@ -1,6 +1,7 @@
 /**
  * ParticleSystem.js - Visual Effects
  * Handles dust, sparks, blood, and environmental particles
+ * PERFORMANCE OPTIMIZED: Uses particle pooling and Points for efficiency
  */
 
 import * as THREE from 'three';
@@ -10,18 +11,104 @@ export class ParticleSystem {
         this.game = game;
         this.scene = game.scene;
         
-        // Particle pools
+        // Get particle count from quality settings
+        const settings = game.settings || {};
+        this.maxParticles = settings.particleCount || 100;
+        this.environmentalParticleCount = settings.environmentParticles || 250;
+        
+        // Particle pools for object reuse
         this.particles = [];
-        this.maxParticles = 1000;
+        this.particlePool = [];
+        
+        // Pre-create particle pool
+        this.initParticlePool();
         
         // Environmental particles
         this.environmentalParticles = null;
         this.setupEnvironmentalParticles();
     }
     
+    /**
+     * PERFORMANCE: Pre-create particle objects for pooling
+     */
+    initParticlePool() {
+        // Use a shared geometry and material for pooled particles
+        this.sharedParticleGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+        this.sharedParticleMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 1
+        });
+        
+        // Pre-create some particles for the pool
+        const poolSize = Math.min(50, this.maxParticles);
+        for (let i = 0; i < poolSize; i++) {
+            const mesh = new THREE.Mesh(
+                this.sharedParticleGeometry,
+                this.sharedParticleMaterial.clone()
+            );
+            mesh.visible = false;
+            this.scene.add(mesh);
+            this.particlePool.push({
+                mesh,
+                velocity: new THREE.Vector3(),
+                gravity: 10,
+                life: 0,
+                maxLife: 1,
+                baseScale: 1,
+                inUse: false
+            });
+        }
+    }
+    
+    /**
+     * Get a particle from the pool or create a new one
+     */
+    getParticleFromPool() {
+        // First try to find an unused particle in the pool
+        for (const particle of this.particlePool) {
+            if (!particle.inUse) {
+                particle.inUse = true;
+                particle.mesh.visible = true;
+                return particle;
+            }
+        }
+        
+        // If pool is exhausted and we haven't hit max, create new one
+        if (this.particles.length < this.maxParticles) {
+            const mesh = new THREE.Mesh(
+                this.sharedParticleGeometry,
+                this.sharedParticleMaterial.clone()
+            );
+            this.scene.add(mesh);
+            const particle = {
+                mesh,
+                velocity: new THREE.Vector3(),
+                gravity: 10,
+                life: 0,
+                maxLife: 1,
+                baseScale: 1,
+                inUse: true
+            };
+            this.particlePool.push(particle);
+            return particle;
+        }
+        
+        return null; // Pool exhausted
+    }
+    
+    /**
+     * Return a particle to the pool
+     */
+    returnToPool(particle) {
+        particle.inUse = false;
+        particle.mesh.visible = false;
+        particle.life = 0;
+    }
+    
     setupEnvironmentalParticles() {
-        // Floating dust/ash particles in the air
-        const count = 500;
+        // Floating dust/ash particles in the air - use quality settings
+        const count = this.environmentalParticleCount;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(count * 3);
         const velocities = [];
@@ -54,10 +141,10 @@ export class ParticleSystem {
     }
     
     update(deltaTime) {
-        // Update environmental particles
+        // Update environmental particles every other frame for performance
         this.updateEnvironmentalParticles(deltaTime);
         
-        // Update active particles
+        // Update active particles using pool system
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const particle = this.particles[i];
             
@@ -65,19 +152,17 @@ export class ParticleSystem {
             particle.life -= deltaTime;
             
             if (particle.life <= 0) {
-                // Remove dead particle
-                this.scene.remove(particle.mesh);
-                particle.mesh.geometry.dispose();
-                particle.mesh.material.dispose();
+                // Return particle to pool instead of destroying
+                this.returnToPool(particle);
                 this.particles.splice(i, 1);
                 continue;
             }
             
             // Update position
             particle.velocity.y -= particle.gravity * deltaTime;
-            particle.mesh.position.add(
-                particle.velocity.clone().multiplyScalar(deltaTime)
-            );
+            particle.mesh.position.x += particle.velocity.x * deltaTime;
+            particle.mesh.position.y += particle.velocity.y * deltaTime;
+            particle.mesh.position.z += particle.velocity.z * deltaTime;
             
             // Update scale (shrink over time)
             const lifeRatio = particle.life / particle.maxLife;
@@ -122,8 +207,8 @@ export class ParticleSystem {
         this.environmentalParticles.geometry.attributes.position.needsUpdate = true;
     }
     
-    // Spawn dust cloud (for rolling, landing, etc.)
-    spawnDustCloud(position, count = 10) {
+    // Spawn dust cloud (for rolling, landing, etc.) - reduced count
+    spawnDustCloud(position, count = 5) { // Reduced from 10
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone().add(new THREE.Vector3(
@@ -142,12 +227,14 @@ export class ParticleSystem {
                 gravity: 5
             });
             
-            this.particles.push(particle);
+            if (particle) {
+                this.particles.push(particle);
+            }
         }
     }
     
-    // Spawn hit sparks (for weapon clashes)
-    spawnHitSparks(position, count = 10) {
+    // Spawn hit sparks (for weapon clashes) - reduced count
+    spawnHitSparks(position, count = 5) { // Reduced from 10
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone(),
@@ -163,12 +250,14 @@ export class ParticleSystem {
                 emissive: true
             });
             
-            this.particles.push(particle);
+            if (particle) {
+                this.particles.push(particle);
+            }
         }
     }
     
-    // Spawn blood effect
-    spawnBlood(position, direction, count = 15) {
+    // Spawn blood effect - reduced count
+    spawnBlood(position, direction, count = 8) { // Reduced from 15
         for (let i = 0; i < count; i++) {
             const velocity = direction.clone().multiplyScalar(3);
             velocity.x += (Math.random() - 0.5) * 4;
@@ -188,7 +277,9 @@ export class ParticleSystem {
                 gravity: 20
             });
             
-            this.particles.push(particle);
+            if (particle) {
+                this.particles.push(particle);
+            }
         }
     }
     
@@ -208,11 +299,13 @@ export class ParticleSystem {
             emissive: true
         });
         
-        this.particles.push(particle);
+        if (particle) {
+            this.particles.push(particle);
+        }
     }
     
-    // Spawn souls pickup effect
-    spawnSoulsEffect(position, count = 20) {
+    // Spawn souls pickup effect - reduced count
+    spawnSoulsEffect(position, count = 10) { // Reduced from 20
         for (let i = 0; i < count; i++) {
             const angle = (i / count) * Math.PI * 2;
             const radius = 1 + Math.random();
@@ -235,11 +328,13 @@ export class ParticleSystem {
                 emissive: true
             });
             
-            this.particles.push(particle);
+            if (particle) {
+                this.particles.push(particle);
+            }
         }
     }
     
-    // Create a single particle
+    // Create a single particle using the pool system
     createParticle(options) {
         const {
             position,
@@ -251,36 +346,38 @@ export class ParticleSystem {
             emissive = false
         } = options;
         
-        const geometry = new THREE.SphereGeometry(size, 4, 4);
-        const material = new THREE.MeshStandardMaterial({
-            color: color,
-            roughness: 0.5,
-            metalness: 0.2,
-            transparent: true,
-            opacity: 1
-        });
+        // Try to get a particle from the pool
+        const particle = this.getParticleFromPool();
         
-        if (emissive) {
-            material.emissive = new THREE.Color(color);
-            material.emissiveIntensity = 0.5;
+        if (!particle) {
+            return null; // Pool exhausted
         }
         
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.copy(position);
-        this.scene.add(mesh);
+        // Configure the pooled particle
+        particle.mesh.position.copy(position);
+        particle.mesh.scale.setScalar(size);
+        particle.mesh.material.color.setHex(color);
+        particle.mesh.material.opacity = 1;
         
-        return {
-            mesh,
-            velocity: velocity.clone(),
-            gravity,
-            life,
-            maxLife: life,
-            baseScale: 1
-        };
+        if (emissive) {
+            particle.mesh.material.emissive = new THREE.Color(color);
+            particle.mesh.material.emissiveIntensity = 0.5;
+        } else {
+            particle.mesh.material.emissive = new THREE.Color(0x000000);
+            particle.mesh.material.emissiveIntensity = 0;
+        }
+        
+        particle.velocity.copy(velocity);
+        particle.gravity = gravity;
+        particle.life = life;
+        particle.maxLife = life;
+        particle.baseScale = size;
+        
+        return particle;
     }
     
     // Spawn fire particles
-    spawnFire(position, count = 5) {
+    spawnFire(position, count = 3) { // Reduced from 5
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone().add(new THREE.Vector3(
@@ -300,18 +397,30 @@ export class ParticleSystem {
                 emissive: true
             });
             
-            this.particles.push(particle);
+            if (particle) {
+                this.particles.push(particle);
+            }
         }
     }
     
     dispose() {
-        // Clean up all particles
-        this.particles.forEach(particle => {
+        // Clean up all particles in pool
+        this.particlePool.forEach(particle => {
             this.scene.remove(particle.mesh);
-            particle.mesh.geometry.dispose();
-            particle.mesh.material.dispose();
+            if (particle.mesh.material !== this.sharedParticleMaterial) {
+                particle.mesh.material.dispose();
+            }
         });
+        this.particlePool = [];
         this.particles = [];
+        
+        // Dispose shared resources
+        if (this.sharedParticleGeometry) {
+            this.sharedParticleGeometry.dispose();
+        }
+        if (this.sharedParticleMaterial) {
+            this.sharedParticleMaterial.dispose();
+        }
         
         if (this.environmentalParticles) {
             this.scene.remove(this.environmentalParticles);
