@@ -82,6 +82,7 @@ export class Player {
         this.comboCount = 0;
         this.lastAttackTime = 0; // For combo timing
         this.maxComboCount = 3; // Maximum hits in a combo
+        this.comboWindowMs = 800; // Time window in ms to chain combo attacks
         
         // Blocking
         this.isBlocking = false;
@@ -545,7 +546,7 @@ export class Player {
         if (type === 'light') {
             // Check if we're within combo window
             const now = Date.now();
-            if (now - this.lastAttackTime < 800 && this.comboCount < 3) {
+            if (now - this.lastAttackTime < this.comboWindowMs && this.comboCount < this.maxComboCount) {
                 this.comboCount++;
             } else {
                 this.comboCount = 1;

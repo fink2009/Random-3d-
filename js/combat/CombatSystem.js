@@ -42,7 +42,7 @@ export class CombatSystem {
         const input = this.game.inputManager;
         
         // Detect parry attempt (right click tap at start of block)
-        if (input && player) {
+        if (input && player && input.keys) {
             const currentBlockState = input.keys.block;
             
             // Detect block start (transition from not blocking to blocking)
