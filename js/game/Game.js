@@ -27,6 +27,7 @@ import { VisualEffects } from '../systems/VisualEffects.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { FastTravelSystem } from '../systems/FastTravelSystem.js';
+import { MusicSystem } from '../systems/MusicSystem.js';
 import { PerformanceSettings } from '../utils/PerformanceSettings.js';
 import { SettingsMenu } from '../ui/SettingsMenu.js';
 
@@ -61,6 +62,7 @@ export class Game {
         this.npcSystem = null;
         this.saveSystem = null;
         this.fastTravelSystem = null;
+        this.musicSystem = null;
         
         // Entities
         this.enemies = [];
@@ -345,6 +347,9 @@ export class Game {
         // Fast travel system
         this.fastTravelSystem = new FastTravelSystem(this);
         
+        // Music system
+        this.musicSystem = new MusicSystem(this);
+        
         // Save system
         this.saveSystem = new SaveSystem(this);
         
@@ -588,6 +593,11 @@ export class Game {
         // Update progression system every 2nd frame
         if (frame % 2 === 0) {
             this.progressionSystem.update(this.deltaTime * 2);
+        }
+        
+        // Update music system every 30th frame (roughly twice per second)
+        if (frame % 30 === 0 && this.musicSystem) {
+            this.musicSystem.update();
         }
         
         // Clean up dead entities every 10th frame

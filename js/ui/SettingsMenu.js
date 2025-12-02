@@ -59,6 +59,20 @@ export class SettingsMenu {
                 </div>
                 
                 <div class="settings-section">
+                    <h2>Audio</h2>
+                    <div class="setting-row">
+                        <label>Music:</label>
+                        <input type="checkbox" id="music-toggle" checked>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>Music Volume:</label>
+                        <input type="range" id="music-volume" min="0" max="100" value="30">
+                        <span id="volume-value">30%</span>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
                     <h2>Performance</h2>
                     <div class="setting-row">
                         <label>Draw Distance:</label>
@@ -173,6 +187,15 @@ export class SettingsMenu {
             this.toggleFPS(e.target.checked);
         });
         
+        // Music controls
+        document.getElementById('music-toggle')?.addEventListener('change', (e) => {
+            this.toggleMusic(e.target.checked);
+        });
+        
+        document.getElementById('music-volume')?.addEventListener('input', (e) => {
+            this.setMusicVolume(parseInt(e.target.value));
+        });
+        
         // Keyboard shortcut to open settings (G key) and close (ESC key)
         document.addEventListener('keydown', (e) => {
             // Ignore if typing in an input field
@@ -220,6 +243,14 @@ export class SettingsMenu {
         document.getElementById('particles-toggle').checked = settings.particlesEnabled;
         document.getElementById('postprocess-toggle').checked = settings.postProcessing;
         document.getElementById('draw-distance').value = settings.renderDistance;
+        
+        // Update music settings
+        if (this.game.musicSystem) {
+            document.getElementById('music-toggle').checked = this.game.musicSystem.enabled;
+            const volumePercent = Math.round(this.game.musicSystem.volume * 100);
+            document.getElementById('music-volume').value = volumePercent;
+            document.getElementById('volume-value').textContent = volumePercent + '%';
+        }
         
         // Update performance info
         document.getElementById('current-fps').textContent = this.game.fps || 0;
@@ -295,6 +326,19 @@ export class SettingsMenu {
         // Update in settings menu if open
         if (this.isOpen) {
             document.getElementById('current-fps').textContent = fps;
+        }
+    }
+    
+    toggleMusic(enabled) {
+        if (this.game.musicSystem) {
+            this.game.musicSystem.setEnabled(enabled);
+        }
+    }
+    
+    setMusicVolume(volumePercent) {
+        if (this.game.musicSystem) {
+            this.game.musicSystem.setVolume(volumePercent / 100);
+            document.getElementById('volume-value').textContent = volumePercent + '%';
         }
     }
 }
