@@ -26,6 +26,7 @@ import { InventorySystem } from '../systems/InventorySystem.js';
 import { VisualEffects } from '../systems/VisualEffects.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { FastTravelSystem } from '../systems/FastTravelSystem.js';
 import { PerformanceSettings } from '../utils/PerformanceSettings.js';
 import { SettingsMenu } from '../ui/SettingsMenu.js';
 
@@ -59,6 +60,7 @@ export class Game {
         this.visualEffects = null;
         this.npcSystem = null;
         this.saveSystem = null;
+        this.fastTravelSystem = null;
         
         // Entities
         this.enemies = [];
@@ -339,6 +341,9 @@ export class Game {
         
         // NPC system
         this.npcSystem = new NPCSystem(this);
+        
+        // Fast travel system
+        this.fastTravelSystem = new FastTravelSystem(this);
         
         // Save system
         this.saveSystem = new SaveSystem(this);

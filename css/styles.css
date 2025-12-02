@@ -1225,6 +1225,65 @@ body {
 }
 
 /* =====================================================
+   FAST TRAVEL MAP STYLES
+   ===================================================== */
+
+#fast-travel-menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    pointer-events: all;
+}
+
+.map-container {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+#map-canvas-container {
+    margin: 20px 0;
+    border: 2px solid rgba(100, 80, 60, 0.5);
+    background: rgba(20, 20, 20, 0.8);
+}
+
+#map-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+}
+
+#map-legend {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin: 15px 0;
+    font-size: 14px;
+    color: #aaa;
+}
+
+.legend-icon {
+    font-size: 18px;
+    margin-right: 5px;
+}
+
+#map-hint {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    margin: 10px 0;
+    font-size: 13px;
+}
+
+/* =====================================================
    RESPONSIVE ADJUSTMENTS
    ===================================================== */
 

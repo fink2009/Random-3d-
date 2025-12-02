@@ -186,6 +186,11 @@ export class CheckpointSystem {
         this.activeCheckpoint = checkpoint;
         this.lastCheckpoint = checkpoint;
         
+        // Discover this Site of Grace for fast travel
+        if (this.game.fastTravelSystem) {
+            this.game.fastTravelSystem.discoverGrace(checkpoint.name);
+        }
+        
         // Open bonfire menu
         document.getElementById('bonfire-menu').classList.remove('hidden');
         
@@ -224,20 +229,26 @@ export class CheckpointSystem {
     }
     
     openFastTravel() {
-        // Show list of discovered checkpoints
-        // For now, just show notification
-        const discovered = this.checkpoints.filter(c => c.isDiscovered);
+        // Close bonfire menu
+        this.leaveBonfire();
         
-        if (discovered.length <= 1) {
-            this.showNotification('No other sites discovered');
-            return;
-        }
-        
-        // Simple fast travel - teleport to first different checkpoint
-        const other = discovered.find(c => c !== this.activeCheckpoint);
-        if (other) {
-            const player = this.game.player;
-            player.position.copy(other.position);
+        // Open fast travel map
+        if (this.game.fastTravelSystem) {
+            this.game.fastTravelSystem.open();
+        } else {
+            // Fallback if fast travel system not available
+            const discovered = this.checkpoints.filter(c => c.isDiscovered);
+            
+            if (discovered.length <= 1) {
+                this.showNotification('No other sites discovered');
+                return;
+            }
+            
+            // Simple fast travel - teleport to first different checkpoint
+            const other = discovered.find(c => c !== this.activeCheckpoint);
+            if (other) {
+                const player = this.game.player;
+                player.position.copy(other.position);
             player.position.y += 1;
             
             this.lastCheckpoint = other;

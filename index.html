@@ -148,6 +148,22 @@
             </div>
         </div>
         
+        <!-- Fast Travel Map -->
+        <div id="fast-travel-menu" class="hidden">
+            <div class="menu-container map-container">
+                <h1>FAST TRAVEL</h1>
+                <div id="map-canvas-container">
+                    <canvas id="map-canvas" width="800" height="600"></canvas>
+                </div>
+                <div id="map-legend">
+                    <div><span class="legend-icon" style="color: #ffd700;">●</span> Site of Grace</div>
+                    <div><span class="legend-icon" style="color: #00ff00;">▲</span> Your Location</div>
+                </div>
+                <p id="map-hint">Click on a Site of Grace to travel (only from a Site of Grace)</p>
+                <button class="menu-button" id="close-map-btn">Close Map</button>
+            </div>
+        </div>
+        
         <!-- Interaction Prompt -->
         <div id="interaction-prompt" class="hidden">
             <span id="prompt-key">E</span>
@@ -175,6 +191,7 @@
             <div class="control-item">L - Weapon Art</div>
             <div class="control-item">X - Cycle Weapon</div>
             <div class="control-item">I - Inventory</div>
+            <div class="control-item">M - Fast Travel Map</div>
             <div class="control-item">1/2/3 - Select Spell</div>
             <div class="control-item">G - Settings</div>
         </div>
