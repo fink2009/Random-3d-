@@ -18,9 +18,22 @@ export class SaveSystem {
         // Track what's been defeated
         this.defeatedBosses = [];
         this.discoveredCheckpoints = [];
+        
+        // Cache for combat check (updated less frequently)
+        this.inCombat = false;
+        this.combatCheckTimer = 0;
+        this.combatCheckInterval = 1; // Check every 1 second
     }
     
     update(deltaTime) {
+        // Update combat check timer (less frequent than every frame)
+        this.combatCheckTimer += deltaTime;
+        if (this.combatCheckTimer >= this.combatCheckInterval) {
+            this.combatCheckTimer = 0;
+            this.inCombat = this.game.enemies.some(e => e.hasAggro) ||
+                           this.game.bosses.some(b => b.hasAggro);
+        }
+        
         // Auto-save at checkpoints is handled by CheckpointSystem
         // But we can track time-based auto-save too
         this.autoSaveTimer += deltaTime;
@@ -28,9 +41,7 @@ export class SaveSystem {
         if (this.autoSaveTimer >= this.autoSaveInterval) {
             this.autoSaveTimer = 0;
             // Don't auto-save during combat or boss fights
-            const inCombat = this.game.enemies.some(e => e.hasAggro) ||
-                            this.game.bosses.some(b => b.hasAggro);
-            if (!inCombat) {
+            if (!this.inCombat) {
                 this.saveGame();
             }
         }

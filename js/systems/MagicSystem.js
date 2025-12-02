@@ -468,7 +468,7 @@ export class MagicSystem {
         for (const enemy of this.game.enemies) {
             if (!enemy.isAlive) continue;
             
-            const dist = pos.distanceTo(enemy.position.add(new THREE.Vector3(0, 1, 0)));
+            const dist = pos.distanceTo(enemy.position.clone().add(new THREE.Vector3(0, 1, 0)));
             if (dist < 1.5) {
                 // Deal damage
                 enemy.takeDamage(proj.damage, pos);
@@ -480,7 +480,7 @@ export class MagicSystem {
         for (const boss of this.game.bosses) {
             if (!boss.isAlive) continue;
             
-            const dist = pos.distanceTo(boss.position.add(new THREE.Vector3(0, 2, 0)));
+            const dist = pos.distanceTo(boss.position.clone().add(new THREE.Vector3(0, 2, 0)));
             if (dist < 3) {
                 boss.takeDamage(proj.damage, pos);
                 return { type: 'boss', target: boss, position: pos.clone() };

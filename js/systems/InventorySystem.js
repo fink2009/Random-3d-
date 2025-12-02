@@ -471,14 +471,22 @@ export class InventorySystem {
                 return;
             }
             
-            // Check enemy collision
+            // Check enemy collision (only nearby enemies for performance)
+            const bombPos = bomb.position;
             for (const enemy of this.game.enemies) {
-                if (enemy.isAlive && bomb.position.distanceTo(enemy.position) < 2) {
-                    this.explodeFirebomb(bomb.position, damage);
-                    this.scene.remove(bomb);
-                    bomb.geometry.dispose();
-                    bomb.material.dispose();
-                    return;
+                if (!enemy.isAlive) continue;
+                // Quick distance check using squared distance to avoid sqrt
+                const dx = bombPos.x - enemy.position.x;
+                const dz = bombPos.z - enemy.position.z;
+                const distSq = dx * dx + dz * dz;
+                if (distSq < 100) { // Only check enemies within 10 units horizontally
+                    if (bombPos.distanceTo(enemy.position) < 2) {
+                        this.explodeFirebomb(bomb.position, damage);
+                        this.scene.remove(bomb);
+                        bomb.geometry.dispose();
+                        bomb.material.dispose();
+                        return;
+                    }
                 }
             }
             
