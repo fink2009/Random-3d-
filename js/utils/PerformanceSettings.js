@@ -308,6 +308,14 @@ export class PerformanceSettings {
     }
     
     /**
+     * Helper method to determine if BasicMaterial should be used
+     * @returns {boolean} true if MeshBasicMaterial should be used instead of Lambert/Standard
+     */
+    shouldUseBasicMaterial() {
+        return !this.settings.useLambertMaterial && this.settings.lightingSimplified;
+    }
+    
+    /**
      * Get current preset name
      */
     getCurrentPreset() {

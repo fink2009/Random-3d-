@@ -176,8 +176,10 @@ export class SettingsMenu {
         // Keyboard shortcut to open settings (G key)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'g' || e.key === 'G') {
-                if (!this.isOpen && !this.game.isPaused) {
+                if (!this.isOpen) {
                     this.open();
+                } else {
+                    this.close();
                 }
             }
         });

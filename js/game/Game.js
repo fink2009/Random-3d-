@@ -593,7 +593,7 @@ export class Game {
         const enemyUpdateRate = settings.enemyUpdateRate || 1;
         
         this.enemies.forEach((enemy, index) => {
-            if (!enemy.isAlive) return;
+            if (!enemy.isAlive || !enemy.mesh) return;
             
             const distance = enemy.position.distanceTo(playerPos);
             
