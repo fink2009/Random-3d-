@@ -56,6 +56,7 @@ A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne se
 | Shift (hold) | Sprint |
 | Tab | Lock-on toggle |
 | E | Interact |
+| G | Settings Menu |
 | Escape | Pause menu |
 | F | Toggle debug info |
 
@@ -69,6 +70,52 @@ A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne se
    ```
 2. Open `http://localhost:8080` in a modern browser
 3. Click on the game to capture mouse for camera control
+
+## Performance Optimizations (NEW!)
+
+This game now includes comprehensive optimizations for **low-end hardware**, specifically targeting old Chromebooks with integrated graphics.
+
+### Quality Presets
+
+The game automatically detects your device capabilities and applies the appropriate quality preset:
+
+- **Potato Mode** 🥔 - Optimized for old Chromebooks and low-end devices
+  - 16x16 terrain segments
+  - Only 15 trees, 3 enemies, 10 rocks
+  - No shadows, no post-processing
+  - MeshBasicMaterial (no lighting calculations)
+  - Render scale: 75%
+  - Target: 30+ FPS on integrated graphics
+
+- **Low** - For entry-level gaming devices
+  - 32x32 terrain segments
+  - Minimal shadows and particles
+  - MeshLambertMaterial (simple lighting)
+  
+- **Medium** - Balanced quality and performance
+  
+- **High** - Maximum visual quality
+
+### Settings Menu
+
+Press **G** or access via Pause Menu to adjust:
+- Quality preset
+- Render scale (50%/75%/100%)
+- Shadows on/off
+- Particles on/off
+- Post-processing on/off
+- Draw distance
+- FPS counter display
+
+### Auto-Detection
+
+The game automatically detects:
+- Integrated GPUs (Intel HD, Mali, Adreno)
+- Low device memory (<4GB)
+- Chromebooks
+- Mobile devices
+
+And applies **Potato Mode** by default for the smoothest experience.
 
 ## Technical Details
 

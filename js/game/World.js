@@ -14,8 +14,10 @@ export class World {
         // Terrain settings - use quality settings if available
         this.worldSize = 500;
         const settings = game.settings || {};
-        this.terrainSegments = settings.terrainDetail || 128;
+        this.terrainSegments = settings.terrainSegments || 16; // Default to 16 for potato mode
         this.heightScale = 20; // Reduced for smoother terrain
+        
+        console.log(`World: Terrain segments set to ${this.terrainSegments}`);
         
         // Height bounds for terrain stability - more conservative range
         this.minHeight = -2;
@@ -114,12 +116,19 @@ export class World {
         
         geometry.computeVertexNormals();
         
-        // Create terrain material - use Lambert for performance (simpler lighting)
-        const material = new THREE.MeshLambertMaterial({
-            vertexColors: true,
-            flatShading: false,
-            side: THREE.DoubleSide  // Render both sides to ensure terrain is always visible
-        });
+        // Create terrain material - use Basic for potato mode (no lighting calculations)
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
+        
+        const material = useBasicMaterial 
+            ? new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide
+            })
+            : new THREE.MeshLambertMaterial({
+                vertexColors: true,
+                flatShading: false,
+                side: THREE.DoubleSide
+            });
         
         // Create mesh
         this.terrain = new THREE.Mesh(geometry, material);
@@ -371,18 +380,22 @@ export class World {
      * PERFORMANCE: Generate trees using instanced meshes (single draw call)
      */
     generateInstancedTrees() {
-        const treeCount = 150; // Reduced from 200 for performance
+        // Use tree count from quality settings
+        const settings = this.game.settings || {};
+        const treeCount = settings.maxTrees || 15;
+        const treeDetail = settings.treeDetail || 4;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometries for tree parts
-        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 6);
-        const trunkMaterial = new THREE.MeshLambertMaterial({
-            color: 0x4a3728
-        });
+        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, Math.max(4, treeDetail));
+        const trunkMaterial = useBasicMaterial
+            ? new THREE.MeshBasicMaterial({ color: 0x4a3728 })
+            : new THREE.MeshLambertMaterial({ color: 0x4a3728 });
         
-        const foliageGeometry = new THREE.ConeGeometry(2, 5, 6);
-        const foliageMaterial = new THREE.MeshLambertMaterial({
-            color: 0x2d5a2d
-        });
+        const foliageGeometry = new THREE.ConeGeometry(2, 5, treeDetail);
+        const foliageMaterial = useBasicMaterial
+            ? new THREE.MeshBasicMaterial({ color: 0x2d5a2d })
+            : new THREE.MeshLambertMaterial({ color: 0x2d5a2d });
         
         // Create instanced meshes
         this.instancedTreeTrunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, treeCount);
@@ -447,13 +460,16 @@ export class World {
      * PERFORMANCE: Generate rocks using instanced meshes (single draw call)
      */
     generateInstancedRocks() {
-        const rockCount = 100; // Reduced from 150 for performance
+        // Use rock count from quality settings
+        const settings = this.game.settings || {};
+        const rockCount = settings.maxRocks || 10;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometry for rocks
         const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
-        const rockMaterial = new THREE.MeshLambertMaterial({
-            color: 0x5a5a5a
-        });
+        const rockMaterial = useBasicMaterial
+            ? new THREE.MeshBasicMaterial({ color: 0x5a5a5a })
+            : new THREE.MeshLambertMaterial({ color: 0x5a5a5a });
         
         this.instancedRocks = new THREE.InstancedMesh(rockGeometry, rockMaterial, rockCount);
         
@@ -512,11 +528,12 @@ export class World {
     }
     
     createRuin(x, y, z, isBossArena = false) {
-        const stoneMaterial = new THREE.MeshStandardMaterial({
-            color: 0x6a6a6a,
-            roughness: 0.95,
-            metalness: 0.05
-        });
+        // Use simpler material for potato mode
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
+        
+        const stoneMaterial = useBasicMaterial
+            ? new THREE.MeshBasicMaterial({ color: 0x6a6a6a })
+            : new THREE.MeshLambertMaterial({ color: 0x6a6a6a });
         
         if (isBossArena) {
             // Boss arena - no separate floor, use terrain as ground
@@ -608,14 +625,15 @@ export class World {
      */
     generateInstancedGrass() {
         // Get grass count from quality settings
-        const grassCount = this.game.settings?.environmentParticles || 250;
+        const settings = this.game.settings || {};
+        const grassCount = settings.maxGrass || settings.environmentParticles || 50;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometry and material for grass
         const grassGeometry = new THREE.PlaneGeometry(0.3, 0.5);
-        const grassMaterial = new THREE.MeshLambertMaterial({
-            color: 0x4a7a3a,
-            side: THREE.DoubleSide
-        });
+        const grassMaterial = useBasicMaterial
+            ? new THREE.MeshBasicMaterial({ color: 0x4a7a3a, side: THREE.DoubleSide })
+            : new THREE.MeshLambertMaterial({ color: 0x4a7a3a, side: THREE.DoubleSide });
         
         this.instancedGrass = new THREE.InstancedMesh(grassGeometry, grassMaterial, grassCount);
         this.instancedGrass.castShadow = false; // Grass doesn't cast shadows for performance

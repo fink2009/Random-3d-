@@ -14,7 +14,8 @@ export class ParticleSystem {
         // Get particle count from quality settings
         const settings = game.settings || {};
         this.maxParticles = settings.particleCount || 100;
-        this.environmentalParticleCount = settings.environmentParticles || 250;
+        this.environmentalParticleCount = settings.environmentParticles || 0;
+        this.enabled = settings.particlesEnabled !== false; // Default to true
         
         // Particle pools for object reuse
         this.particles = [];
@@ -25,7 +26,9 @@ export class ParticleSystem {
         
         // Environmental particles
         this.environmentalParticles = null;
-        this.setupEnvironmentalParticles();
+        if (this.enabled && this.environmentalParticleCount > 0) {
+            this.setupEnvironmentalParticles();
+        }
     }
     
     /**
@@ -141,6 +144,11 @@ export class ParticleSystem {
     }
     
     update(deltaTime) {
+        // Skip update if particles are disabled
+        if (!this.enabled) {
+            return;
+        }
+        
         // Update environmental particles every other frame for performance
         this.updateEnvironmentalParticles(deltaTime);
         
@@ -209,6 +217,7 @@ export class ParticleSystem {
     
     // Spawn dust cloud (for rolling, landing, etc.) - reduced count
     spawnDustCloud(position, count = 5) { // Reduced from 10
+        if (!this.enabled) return;
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone().add(new THREE.Vector3(
@@ -235,6 +244,7 @@ export class ParticleSystem {
     
     // Spawn hit sparks (for weapon clashes) - reduced count
     spawnHitSparks(position, count = 5) { // Reduced from 10
+        if (!this.enabled) return;
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone(),
@@ -258,6 +268,7 @@ export class ParticleSystem {
     
     // Spawn blood effect - reduced count
     spawnBlood(position, direction, count = 8) { // Reduced from 15
+        if (!this.enabled) return;
         for (let i = 0; i < count; i++) {
             const velocity = direction.clone().multiplyScalar(3);
             velocity.x += (Math.random() - 0.5) * 4;
@@ -285,6 +296,7 @@ export class ParticleSystem {
     
     // Spawn magic/soul particle
     spawnMagicParticle(position) {
+        if (!this.enabled) return;
         const particle = this.createParticle({
             position: position.clone(),
             velocity: new THREE.Vector3(
@@ -306,6 +318,7 @@ export class ParticleSystem {
     
     // Spawn souls pickup effect - reduced count
     spawnSoulsEffect(position, count = 10) { // Reduced from 20
+        if (!this.enabled) return;
         for (let i = 0; i < count; i++) {
             const angle = (i / count) * Math.PI * 2;
             const radius = 1 + Math.random();
@@ -378,6 +391,7 @@ export class ParticleSystem {
     
     // Spawn fire particles
     spawnFire(position, count = 3) { // Reduced from 5
+        if (!this.enabled) return;
         for (let i = 0; i < count; i++) {
             const particle = this.createParticle({
                 position: position.clone().add(new THREE.Vector3(
