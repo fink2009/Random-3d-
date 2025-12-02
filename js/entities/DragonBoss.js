@@ -340,6 +340,8 @@ export class DragonBoss {
     update(deltaTime) {
         if (!this.isAlive) {
             this.deathTimer -= deltaTime;
+            // Hide boss health bar when dead
+            this.hideBossHealthBar();
             return;
         }
         
@@ -386,9 +388,16 @@ export class DragonBoss {
         // Update mesh
         this.updateMesh();
         
-        // Update health bar
-        if (this.hasAggro) {
+        // Update health bar when in combat and player is nearby
+        const player = this.game.player;
+        const distanceToPlayer = this.position.distanceTo(player.position);
+        
+        if (this.hasAggro && distanceToPlayer < 60) {
             this.updateHealthBar();
+        } else if (distanceToPlayer >= 60) {
+            // Hide health bar when player is too far away
+            this.hideBossHealthBar();
+            this.hasAggro = false;
         }
     }
     

@@ -20,7 +20,12 @@ export class WeaponSystem {
                 range: 2.5,
                 scaling: { strength: 'C', dexterity: 'C' },
                 weight: 4,
-                description: 'A balanced sword suitable for any warrior'
+                description: 'A balanced sword suitable for any warrior',
+                weaponArt: {
+                    name: 'Stance',
+                    fpCost: 15,
+                    description: 'Enter defensive stance, next attack is enhanced'
+                }
             },
             greatsword: {
                 name: 'Greatsword',
@@ -31,7 +36,12 @@ export class WeaponSystem {
                 range: 3.2,
                 scaling: { strength: 'A', dexterity: 'D' },
                 weight: 10,
-                description: 'A massive blade requiring great strength'
+                description: 'A massive blade requiring great strength',
+                weaponArt: {
+                    name: 'Stomp',
+                    fpCost: 20,
+                    description: 'AOE stagger nearby enemies, follow up with upward swing'
+                }
             },
             dagger: {
                 name: 'Dagger',
@@ -42,7 +52,12 @@ export class WeaponSystem {
                 range: 1.5,
                 scaling: { strength: 'E', dexterity: 'A' },
                 critMultiplier: 1.5,
-                description: 'A swift blade for quick strikes and critical hits'
+                description: 'A swift blade for quick strikes and critical hits',
+                weaponArt: {
+                    name: 'Quickstep',
+                    fpCost: 10,
+                    description: 'Fast sidestep dodge with i-frames'
+                }
             },
             battleaxe: {
                 name: 'Battle Axe',
@@ -76,7 +91,12 @@ export class WeaponSystem {
                 scaling: { strength: 'D', dexterity: 'A' },
                 bleedBuildup: 30,
                 weight: 5,
-                description: 'A curved blade from the east with bleed effect'
+                description: 'A curved blade from the east with bleed effect',
+                weaponArt: {
+                    name: 'Unsheathe',
+                    fpCost: 18,
+                    description: 'Sheathe blade, charge, powerful draw slash (2.5x damage)'
+                }
             },
             hammer: {
                 name: 'Great Hammer',
@@ -100,7 +120,12 @@ export class WeaponSystem {
                 scaling: { strength: 'E', dexterity: 'E', intelligence: 'A' },
                 spellBuff: 1.2,
                 weight: 3,
-                description: 'A staff that enhances sorcery power'
+                description: 'A staff that enhances sorcery power',
+                weaponArt: {
+                    name: 'Magic Burst',
+                    fpCost: 25,
+                    description: '360 degree magic damage to all nearby enemies'
+                }
             }
         };
         
@@ -556,5 +581,196 @@ export class WeaponSystem {
         );
         crystal.position.y = 1.35;
         group.add(crystal);
+    }
+    
+    // Weapon Art System
+    useWeaponArt() {
+        const weapon = this.getEquippedWeapon();
+        if (!weapon || !weapon.weaponArt) return false;
+        
+        const player = this.game.player;
+        if (!player) return false;
+        
+        // Check FP cost
+        if (player.mana < weapon.weaponArt.fpCost) {
+            if (this.game.hud) {
+                this.game.hud.showMessage('Not enough FP!', 1500);
+            }
+            return false;
+        }
+        
+        // Deduct FP
+        player.mana -= weapon.weaponArt.fpCost;
+        
+        // Show weapon art name
+        if (this.game.hud) {
+            this.game.hud.showMessage(`${weapon.weaponArt.name}!`, 1500);
+        }
+        
+        // Execute weapon-specific art
+        switch (weapon.type) {
+            case 'sword':
+                this.weaponArtStance(player);
+                break;
+            case 'greatsword':
+                this.weaponArtStomp(player);
+                break;
+            case 'dagger':
+                this.weaponArtQuickstep(player);
+                break;
+            case 'katana':
+                this.weaponArtUnsheathe(player);
+                break;
+            case 'staff':
+                this.weaponArtMagicBurst(player);
+                break;
+        }
+        
+        return true;
+    }
+    
+    weaponArtStance(player) {
+        // Longsword - Defensive stance with enhanced next attack
+        player.stanceActive = true;
+        player.stanceDamageMultiplier = 1.5;
+        player.stanceDefenseBonus = 0.3;
+        
+        // Visual effect - golden aura
+        this.game.particleSystem.spawnAuraEffect(player.position, 0xffd700, 30);
+        
+        setTimeout(() => {
+            player.stanceActive = false;
+            player.stanceDamageMultiplier = 1.0;
+            player.stanceDefenseBonus = 0;
+        }, 5000);
+    }
+    
+    weaponArtStomp(player) {
+        // Greatsword - AOE stagger
+        const stompRadius = 4;
+        
+        // Visual effect - shockwave
+        this.game.particleSystem.spawnDustCloud(player.position, 40);
+        this.game.visualEffects.createShockwave(player.position, stompRadius);
+        
+        // Damage and stagger nearby enemies
+        for (const enemy of this.game.enemies) {
+            if (!enemy.isAlive) continue;
+            const dist = player.position.distanceTo(enemy.position);
+            if (dist < stompRadius) {
+                enemy.takeDamage(25, player.position);
+                enemy.stagger(1.5);
+            }
+        }
+        
+        for (const boss of this.game.bosses) {
+            if (!boss.isAlive) continue;
+            const dist = player.position.distanceTo(boss.position);
+            if (dist < stompRadius) {
+                boss.takeDamage(25, player.position);
+            }
+        }
+    }
+    
+    weaponArtQuickstep(player) {
+        // Dagger - Fast dodge with i-frames
+        const dodgeDistance = 4;
+        const dodgeDuration = 0.3;
+        
+        // Calculate dodge direction
+        const moveDir = new THREE.Vector3(
+            this.game.inputManager.keys.left ? -1 : (this.game.inputManager.keys.right ? 1 : 0),
+            0,
+            this.game.inputManager.keys.forward ? -1 : (this.game.inputManager.keys.backward ? 1 : 0)
+        );
+        
+        if (moveDir.length() === 0) {
+            // Default to backward if no input
+            moveDir.z = 1;
+        }
+        
+        moveDir.normalize();
+        moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation);
+        
+        // Apply dodge
+        const targetPos = player.position.clone().add(moveDir.multiplyScalar(dodgeDistance));
+        player.position.copy(targetPos);
+        
+        // i-frames
+        player.hasIFrames = true;
+        
+        // Visual effect - blur/dash effect
+        this.game.particleSystem.spawnDashEffect(player.position, 20);
+        
+        setTimeout(() => {
+            player.hasIFrames = false;
+        }, dodgeDuration * 1000);
+    }
+    
+    weaponArtUnsheathe(player) {
+        // Katana - Charged draw attack
+        player.isUnsheathing = true;
+        player.unsheatheDamageMultiplier = 2.5;
+        
+        // Visual effect - charging aura
+        this.game.particleSystem.spawnChargingEffect(player.position, 0x88ccff, 25);
+        
+        // Charge for 1 second then execute
+        setTimeout(() => {
+            if (player.isUnsheathing) {
+                // Execute powerful slash
+                const slashRange = 4;
+                const slashAngle = Math.PI / 3; // 60 degrees
+                
+                // Visual effect - slash wave
+                this.game.visualEffects.createSlashWave(player.position, player.rotation, slashRange);
+                
+                // Damage enemies in arc
+                for (const enemy of this.game.enemies) {
+                    if (!enemy.isAlive) continue;
+                    
+                    const toEnemy = new THREE.Vector3().subVectors(enemy.position, player.position);
+                    const dist = toEnemy.length();
+                    
+                    if (dist < slashRange) {
+                        const angle = Math.atan2(toEnemy.x, toEnemy.z) - player.rotation;
+                        if (Math.abs(angle) < slashAngle / 2) {
+                            const damage = Math.floor(this.getEquippedWeapon().damage * player.unsheatheDamageMultiplier);
+                            enemy.takeDamage(damage, player.position);
+                        }
+                    }
+                }
+                
+                player.isUnsheathing = false;
+                player.unsheatheDamageMultiplier = 1.0;
+            }
+        }, 1000);
+    }
+    
+    weaponArtMagicBurst(player) {
+        // Staff - 360 degree magic damage
+        const burstRadius = 5;
+        const burstDamage = 40;
+        
+        // Visual effect - magic explosion
+        this.game.particleSystem.spawnMagicBurst(player.position, 50);
+        this.game.visualEffects.createMagicNova(player.position, burstRadius);
+        
+        // Damage all nearby enemies
+        for (const enemy of this.game.enemies) {
+            if (!enemy.isAlive) continue;
+            const dist = player.position.distanceTo(enemy.position);
+            if (dist < burstRadius) {
+                enemy.takeDamage(burstDamage, player.position);
+            }
+        }
+        
+        for (const boss of this.game.bosses) {
+            if (!boss.isAlive) continue;
+            const dist = player.position.distanceTo(boss.position);
+            if (dist < burstRadius) {
+                boss.takeDamage(burstDamage, player.position);
+            }
+        }
     }
 }

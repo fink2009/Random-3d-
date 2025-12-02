@@ -730,4 +730,106 @@ export class VisualEffects {
         const minutes = Math.floor((this.dayTime * 24 - hours) * 60);
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
+    
+    // Weapon Art Visual Effects
+    createShockwave(position, radius) {
+        const geometry = new THREE.RingGeometry(0.1, radius, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+        
+        const shockwave = new THREE.Mesh(geometry, material);
+        shockwave.position.copy(position);
+        shockwave.position.y = 0.1;
+        shockwave.rotation.x = -Math.PI / 2;
+        this.scene.add(shockwave);
+        
+        // Animate expansion and fade
+        let scale = 1;
+        const animate = () => {
+            scale += 0.1;
+            shockwave.scale.set(scale, scale, 1);
+            material.opacity -= 0.05;
+            
+            if (material.opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                this.scene.remove(shockwave);
+                geometry.dispose();
+                material.dispose();
+            }
+        };
+        animate();
+    }
+    
+    createSlashWave(position, rotation, range) {
+        const geometry = new THREE.PlaneGeometry(range, 2);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x88ccff,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        
+        const wave = new THREE.Mesh(geometry, material);
+        wave.position.copy(position);
+        wave.position.y = 1;
+        wave.rotation.y = rotation;
+        this.scene.add(wave);
+        
+        // Animate forward movement and fade
+        let distance = 0;
+        const animate = () => {
+            distance += 0.3;
+            wave.position.x += Math.sin(rotation) * 0.3;
+            wave.position.z += Math.cos(rotation) * 0.3;
+            material.opacity -= 0.04;
+            
+            if (material.opacity > 0 && distance < range) {
+                requestAnimationFrame(animate);
+            } else {
+                this.scene.remove(wave);
+                geometry.dispose();
+                material.dispose();
+            }
+        };
+        animate();
+    }
+    
+    createMagicNova(position, radius) {
+        // Create expanding magic ring
+        const geometry = new THREE.TorusGeometry(radius / 2, 0.2, 16, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x8844ff,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const ring = new THREE.Mesh(geometry, material);
+        ring.position.copy(position);
+        ring.position.y = 1;
+        this.scene.add(ring);
+        
+        // Animate expansion and rotation
+        let scale = 0.5;
+        const animate = () => {
+            scale += 0.15;
+            ring.scale.set(scale, scale, scale);
+            ring.rotation.x += 0.1;
+            ring.rotation.y += 0.05;
+            material.opacity -= 0.06;
+            
+            if (material.opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                this.scene.remove(ring);
+                geometry.dispose();
+                material.dispose();
+            }
+        };
+        animate();
+    }
 }

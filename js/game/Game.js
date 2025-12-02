@@ -26,6 +26,8 @@ import { InventorySystem } from '../systems/InventorySystem.js';
 import { VisualEffects } from '../systems/VisualEffects.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { FastTravelSystem } from '../systems/FastTravelSystem.js';
+import { MusicSystem } from '../systems/MusicSystem.js';
 import { PerformanceSettings } from '../utils/PerformanceSettings.js';
 import { SettingsMenu } from '../ui/SettingsMenu.js';
 
@@ -59,6 +61,8 @@ export class Game {
         this.visualEffects = null;
         this.npcSystem = null;
         this.saveSystem = null;
+        this.fastTravelSystem = null;
+        this.musicSystem = null;
         
         // Entities
         this.enemies = [];
@@ -340,6 +344,12 @@ export class Game {
         // NPC system
         this.npcSystem = new NPCSystem(this);
         
+        // Fast travel system
+        this.fastTravelSystem = new FastTravelSystem(this);
+        
+        // Music system
+        this.musicSystem = new MusicSystem(this);
+        
         // Save system
         this.saveSystem = new SaveSystem(this);
         
@@ -463,6 +473,15 @@ export class Game {
         
         // Pause menu buttons
         document.getElementById('resume-btn')?.addEventListener('click', () => this.resume());
+        document.getElementById('inventory-btn')?.addEventListener('click', () => {
+            this.inventorySystem.toggleInventory();
+        });
+        document.getElementById('stats-btn')?.addEventListener('click', () => {
+            // Show character stats UI
+            if (this.progressionSystem) {
+                this.showCharacterStats();
+            }
+        });
         document.getElementById('quit-btn')?.addEventListener('click', () => this.quit());
     }
     
@@ -574,6 +593,11 @@ export class Game {
         // Update progression system every 2nd frame
         if (frame % 2 === 0) {
             this.progressionSystem.update(this.deltaTime * 2);
+        }
+        
+        // Update music system every 30th frame (roughly twice per second)
+        if (frame % 30 === 0 && this.musicSystem) {
+            this.musicSystem.update();
         }
         
         // Clean up dead entities every 10th frame
@@ -691,6 +715,17 @@ export class Game {
     resume() {
         this.isPaused = false;
         document.getElementById('pause-menu').classList.add('hidden');
+        // Re-lock pointer for camera control
+        this.canvas.requestPointerLock();
+    }
+    
+    showCharacterStats() {
+        // Show character stats screen (reuse level up menu for now)
+        const levelUpMenu = document.getElementById('level-up-menu');
+        if (levelUpMenu) {
+            levelUpMenu.classList.remove('hidden');
+            this.progressionSystem.updateLevelUpUI();
+        }
     }
     
     quit() {

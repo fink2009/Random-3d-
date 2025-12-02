@@ -125,6 +125,12 @@ export class InputManager {
                     this.game.weaponSystem.cycleWeapon();
                 }
                 break;
+            case 'KeyL':
+                // Use weapon art
+                if (this.game.weaponSystem && !this.game.isPaused) {
+                    this.game.weaponSystem.useWeaponArt();
+                }
+                break;
             case 'KeyG':
                 // Toggle debug info
                 document.getElementById('debug-info').classList.toggle('hidden');

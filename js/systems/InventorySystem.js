@@ -269,28 +269,35 @@ export class InventorySystem {
         const itemDef = this.itemDatabase[worldItem.id];
         if (!itemDef) return;
         
-        // Add to inventory
-        const added = this.addItem(worldItem.id, 1);
+        // Hide mesh immediately for instant visual feedback
+        worldItem.mesh.visible = false;
+        worldItem.collected = true;
         
-        if (added) {
-            // Show pickup notification
-            if (this.game.hud) {
-                this.game.hud.showItemPickup(itemDef.name);
-            }
-            
-            // Spawn pickup effect
-            this.game.particleSystem.spawnSoulsEffect(worldItem.position.clone(), 10);
-            
-            // Remove from world
-            worldItem.collected = true;
+        // Show pickup notification immediately
+        if (this.game.hud) {
+            this.game.hud.showItemPickup(itemDef.name);
+        }
+        
+        // Spawn pickup effect immediately
+        this.game.particleSystem.spawnSoulsEffect(worldItem.position.clone(), 10);
+        
+        // Add to inventory on next frame using requestAnimationFrame
+        requestAnimationFrame(() => {
+            this.addItem(worldItem.id, 1);
+            this.updateQuickItemDisplay();
+        });
+        
+        // Dispose mesh asynchronously to avoid blocking
+        setTimeout(() => {
             this.scene.remove(worldItem.mesh);
             worldItem.mesh.traverse(child => {
                 if (child.geometry) child.geometry.dispose();
                 if (child.material) child.material.dispose();
             });
-            
-            this.worldItems.splice(index, 1);
-        }
+        }, 0);
+        
+        // Remove from array immediately
+        this.worldItems.splice(index, 1);
     }
     
     addItem(itemId, quantity = 1) {

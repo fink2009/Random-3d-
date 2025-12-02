@@ -41,6 +41,11 @@
                 <div class="equipment-slot" id="shield-slot">🛡</div>
                 <div class="equipment-slot" id="item-slot">🧪</div>
             </div>
+            
+            <!-- Minimap -->
+            <div id="minimap-container">
+                <canvas id="minimap" width="150" height="150"></canvas>
+            </div>
         </div>
         
         <!-- Boss Health Bar -->
@@ -131,6 +136,34 @@
             </div>
         </div>
         
+        <!-- Shop Menu -->
+        <div id="shop-menu" class="hidden">
+            <div class="menu-container shop-container">
+                <h1 id="shop-title">MERCHANT</h1>
+                <div id="shop-souls">Souls: <span id="shop-souls-amount">0</span></div>
+                <div id="shop-items-grid" class="shop-items-grid">
+                    <!-- Shop items will be populated here -->
+                </div>
+                <button class="menu-button" id="close-shop-btn">Leave</button>
+            </div>
+        </div>
+        
+        <!-- Fast Travel Map -->
+        <div id="fast-travel-menu" class="hidden">
+            <div class="menu-container map-container">
+                <h1>FAST TRAVEL</h1>
+                <div id="map-canvas-container">
+                    <canvas id="map-canvas" width="800" height="600"></canvas>
+                </div>
+                <div id="map-legend">
+                    <div><span class="legend-icon" style="color: #ffd700;">●</span> Site of Grace</div>
+                    <div><span class="legend-icon" style="color: #00ff00;">▲</span> Your Location</div>
+                </div>
+                <p id="map-hint">Click on a Site of Grace to travel (only from a Site of Grace)</p>
+                <button class="menu-button" id="close-map-btn">Close Map</button>
+            </div>
+        </div>
+        
         <!-- Interaction Prompt -->
         <div id="interaction-prompt" class="hidden">
             <span id="prompt-key">E</span>
@@ -155,8 +188,10 @@
             <div class="control-item">Q - Cast Spell</div>
             <div class="control-item">F - Heal</div>
             <div class="control-item">R - Use Item</div>
+            <div class="control-item">L - Weapon Art</div>
             <div class="control-item">X - Cycle Weapon</div>
             <div class="control-item">I - Inventory</div>
+            <div class="control-item">M - Fast Travel Map</div>
             <div class="control-item">1/2/3 - Select Spell</div>
             <div class="control-item">G - Settings</div>
         </div>

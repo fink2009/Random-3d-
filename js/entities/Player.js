@@ -886,9 +886,25 @@ export class Player {
             this.position.x = THREE.MathUtils.clamp(newX, -worldBound, worldBound);
             this.position.z = THREE.MathUtils.clamp(newZ, -worldBound, worldBound);
         } else {
-            // If collision, stop horizontal velocity
-            this.velocity.x = 0;
-            this.velocity.z = 0;
+            // Try sliding along walls - test X and Z separately
+            const testX = new THREE.Vector3(newX, this.position.y, this.position.z);
+            const testZ = new THREE.Vector3(this.position.x, this.position.y, newZ);
+            
+            const collisionX = this.game.world.checkCollision(testX, this.collisionRadius);
+            const collisionZ = this.game.world.checkCollision(testZ, this.collisionRadius);
+            
+            // Apply movement in directions without collision (allows sliding along walls)
+            if (!collisionX) {
+                this.position.x = THREE.MathUtils.clamp(newX, -worldBound, worldBound);
+            } else {
+                this.velocity.x = 0;
+            }
+            
+            if (!collisionZ) {
+                this.position.z = THREE.MathUtils.clamp(newZ, -worldBound, worldBound);
+            } else {
+                this.velocity.z = 0;
+            }
         }
         
         // Apply vertical velocity
