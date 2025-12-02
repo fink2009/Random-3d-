@@ -1,6 +1,7 @@
 /**
  * VisualEffects.js - Enhanced Visual System
  * Day/night cycle, weather, atmosphere, and post-processing
+ * PERFORMANCE OPTIMIZED: Reduced particle counts and staggered updates
  */
 
 import * as THREE from 'three';
@@ -11,6 +12,11 @@ export class VisualEffects {
     constructor(game) {
         this.game = game;
         this.scene = game.scene;
+        
+        // Get quality settings
+        const settings = game.settings || {};
+        this.maxFireflies = settings.maxFireflies || 50;
+        this.postProcessingEnabled = settings.postProcessing !== false;
         
         // Day/night cycle - 10 minute real-time cycle
         this.dayDuration = 600; // seconds
@@ -32,6 +38,9 @@ export class VisualEffects {
         this.motes = [];
         this.fogDensity = 0.008;
         
+        // Update throttling for performance
+        this.updateCounter = 0;
+        
         // Post-processing already handled by Game.js, we extend it
         this.setupVisuals();
     }
@@ -44,6 +53,23 @@ export class VisualEffects {
         this.createFireflies();
         this.createAmbientMotes();
         this.enhancePostProcessing();
+    }
+    
+    /**
+     * Apply quality settings dynamically
+     */
+    applyQualitySettings(settings) {
+        this.maxFireflies = settings.maxFireflies || 50;
+        this.postProcessingEnabled = settings.postProcessing !== false;
+        
+        // Update firefly count if needed
+        if (this.fireflies.length > this.maxFireflies) {
+            // Remove excess fireflies
+            const excess = this.fireflies.splice(this.maxFireflies);
+            excess.forEach(firefly => {
+                this.scene.remove(firefly.mesh);
+            });
+        }
     }
     
     createSun() {
@@ -99,7 +125,8 @@ export class VisualEffects {
     }
     
     createStars() {
-        const starCount = 1000;
+        // Reduced star count for performance
+        const starCount = 500; // Reduced from 1000
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(starCount * 3);
         const colors = new Float32Array(starCount * 3);
@@ -141,7 +168,8 @@ export class VisualEffects {
     }
     
     createClouds() {
-        const cloudCount = 15;
+        // Reduced cloud count for performance
+        const cloudCount = 10; // Reduced from 15
         const cloudMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
@@ -186,18 +214,19 @@ export class VisualEffects {
     }
     
     createFireflies() {
-        // Only visible at night
-        const fireflyCount = 100;
+        // Only visible at night - use quality settings for count
+        const fireflyCount = this.maxFireflies;
+        
+        // Use shared geometry and material for all fireflies
+        const sharedGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+        const sharedMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff44,
+            transparent: true,
+            opacity: 0
+        });
         
         for (let i = 0; i < fireflyCount; i++) {
-            const geometry = new THREE.SphereGeometry(0.1, 4, 4);
-            const material = new THREE.MeshBasicMaterial({
-                color: 0xffff44,
-                transparent: true,
-                opacity: 0
-            });
-            
-            const firefly = new THREE.Mesh(geometry, material);
+            const firefly = new THREE.Mesh(sharedGeometry, sharedMaterial.clone());
             
             // Scatter around world
             firefly.position.set(
@@ -206,9 +235,12 @@ export class VisualEffects {
                 (Math.random() - 0.5) * 200
             );
             
-            // Add point light
-            const light = new THREE.PointLight(0xffff44, 0, 3);
-            firefly.add(light);
+            // Only add point lights to every 5th firefly for performance
+            let light = null;
+            if (i % 5 === 0) {
+                light = new THREE.PointLight(0xffff44, 0, 3);
+                firefly.add(light);
+            }
             
             this.fireflies.push({
                 mesh: firefly,
@@ -223,8 +255,8 @@ export class VisualEffects {
     }
     
     createAmbientMotes() {
-        // Dust/pollen visible in sunlight
-        const moteCount = 200;
+        // Dust/pollen visible in sunlight - reduced count
+        const moteCount = 100; // Reduced from 200
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(moteCount * 3);
         
@@ -249,7 +281,12 @@ export class VisualEffects {
     }
     
     enhancePostProcessing() {
-        // Add SMAA anti-aliasing
+        // Skip if post-processing is disabled or composer doesn't exist
+        if (!this.postProcessingEnabled || !this.game.composer) {
+            return;
+        }
+        
+        // Add SMAA anti-aliasing (faster than SMAA at high quality)
         try {
             const smaaPass = new SMAAPass(
                 window.innerWidth * this.game.renderer.getPixelRatio(),
@@ -260,16 +297,21 @@ export class VisualEffects {
             console.log('SMAA not available, using default AA');
         }
         
-        // Add vignette effect
+        // Add vignette effect (light, low performance impact)
         this.addVignettePass();
     }
     
     addVignettePass() {
+        // Skip if post-processing is disabled or composer doesn't exist
+        if (!this.postProcessingEnabled || !this.game.composer) {
+            return;
+        }
+        
         const vignetteShader = {
             uniforms: {
                 tDiffuse: { value: null },
                 offset: { value: 0.95 },
-                darkness: { value: 1.0 }
+                darkness: { value: 0.8 } // Reduced darkness for subtlety
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -305,17 +347,26 @@ export class VisualEffects {
     }
     
     update(deltaTime) {
+        // Increment update counter for staggered updates
+        this.updateCounter++;
+        
         // Update day/night cycle
         this.updateDayNightCycle(deltaTime);
         
-        // Update clouds
-        this.updateClouds(deltaTime);
+        // Update clouds every 3rd frame
+        if (this.updateCounter % 3 === 0) {
+            this.updateClouds(deltaTime * 3);
+        }
         
-        // Update fireflies
-        this.updateFireflies(deltaTime);
+        // Update fireflies every 2nd frame
+        if (this.updateCounter % 2 === 0) {
+            this.updateFireflies(deltaTime * 2);
+        }
         
-        // Update motes
-        this.updateMotes(deltaTime);
+        // Update motes every 2nd frame
+        if (this.updateCounter % 2 === 1) {
+            this.updateMotes(deltaTime * 2);
+        }
         
         // Update weather
         this.updateWeather(deltaTime);
@@ -508,7 +559,11 @@ export class VisualEffects {
             firefly.phase += deltaTime * firefly.speed;
             const blink = (Math.sin(firefly.phase * 3) + 1) * 0.5;
             firefly.mesh.material.opacity = blink * 0.8;
-            firefly.light.intensity = blink * 0.3;
+            
+            // Only update light if it exists (performance optimization)
+            if (firefly.light) {
+                firefly.light.intensity = blink * 0.3;
+            }
             
             // Gentle movement
             firefly.mesh.position.y = firefly.baseY + Math.sin(firefly.phase) * 0.5;
@@ -531,16 +586,18 @@ export class VisualEffects {
             deltaTime * 2
         );
         
-        // Gentle drift
+        // Update only every other position for performance (skip every other particle)
         const positions = this.moteSystem.geometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i] += (Math.random() - 0.5) * deltaTime * 0.5;
-            positions[i + 1] += Math.random() * deltaTime * 0.2;
-            positions[i + 2] += (Math.random() - 0.5) * deltaTime * 0.5;
+        const updateOffset = this.updateCounter % 2;
+        for (let i = updateOffset; i < positions.length / 3; i += 2) {
+            const idx = i * 3;
+            positions[idx] += (Math.random() - 0.5) * deltaTime;
+            positions[idx + 1] += Math.random() * deltaTime * 0.4;
+            positions[idx + 2] += (Math.random() - 0.5) * deltaTime;
             
             // Reset if too high
-            if (positions[i + 1] > 35) {
-                positions[i + 1] = 0;
+            if (positions[idx + 1] > 35) {
+                positions[idx + 1] = 0;
             }
         }
         this.moteSystem.geometry.attributes.position.needsUpdate = true;
