@@ -603,6 +603,34 @@ body {
 }
 
 /* =====================================================
+   GAME MESSAGES (Souls Retrieved, etc.)
+   ===================================================== */
+
+@keyframes message-appear {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+.game-message {
+    font-family: 'Times New Roman', serif;
+}
+
+/* =====================================================
+   EXHAUSTED STAMINA BAR
+   ===================================================== */
+
+.stat-bar.exhausted {
+    animation: stamina-flash 0.3s infinite;
+}
+
+@keyframes stamina-flash {
+    0%, 100% { border-color: rgba(100, 80, 60, 0.6); }
+    50% { border-color: rgba(255, 50, 50, 0.8); }
+}
+
+/* =====================================================
    RESPONSIVE
    ===================================================== */
 

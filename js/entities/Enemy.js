@@ -384,8 +384,8 @@ export class Enemy {
             const angle = Math.acos(facingDir.dot(toPlayer));
             
             if (angle < Math.PI / 2) {
-                // Hit player
-                player.takeDamage(this.damage, this.position);
+                // Hit player - pass self as attacker for parry detection
+                player.takeDamage(this.damage, this.position, this);
             }
         }
     }

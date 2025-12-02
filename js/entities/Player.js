@@ -80,6 +80,8 @@ export class Player {
         this.attackCooldown = 0;
         this.canCombo = false;
         this.comboCount = 0;
+        this.lastAttackTime = 0; // For combo timing
+        this.maxComboCount = 3; // Maximum hits in a combo
         
         // Blocking
         this.isBlocking = false;
@@ -539,8 +541,27 @@ export class Player {
         this.attackType = type;
         this.attackTimer = 0;
         
-        // Attack duration based on type
-        const attackDuration = type === 'light' ? 0.4 : 0.8;
+        // Handle combo system for light attacks
+        if (type === 'light') {
+            // Check if we're within combo window
+            const now = Date.now();
+            if (now - this.lastAttackTime < 800 && this.comboCount < 3) {
+                this.comboCount++;
+            } else {
+                this.comboCount = 1;
+            }
+            this.lastAttackTime = now;
+        } else {
+            // Heavy attacks reset combo
+            this.comboCount = 0;
+        }
+        
+        // Attack duration based on type and combo
+        let attackDuration = type === 'light' ? 0.35 : 0.8;
+        // Slightly faster attacks in combo
+        if (this.comboCount > 1) {
+            attackDuration *= 0.9;
+        }
         this.stateTimer = attackDuration;
         
         // Face locked target or camera direction
@@ -626,14 +647,20 @@ export class Player {
             const angle = Math.acos(attackDir.dot(toEnemy));
             
             if (angle < attackAngle) {
-                // Hit!
-                const damage = this.calculateDamage();
-                enemy.takeDamage(damage, this.position);
-                
-                // Spawn hit particles
-                const hitPos = enemy.position.clone();
-                hitPos.y += 1;
-                this.game.particleSystem.spawnHitSparks(hitPos, 15);
+                // Check for riposte opportunity (enemy staggered after parry)
+                if (this.game.combatSystem.canRiposte(enemy)) {
+                    // Perform riposte for massive damage
+                    this.game.combatSystem.performRiposte(enemy);
+                } else {
+                    // Normal hit
+                    const damage = this.calculateDamage();
+                    enemy.takeDamage(damage, this.position);
+                    
+                    // Spawn hit particles
+                    const hitPos = enemy.position.clone();
+                    hitPos.y += 1;
+                    this.game.particleSystem.spawnHitSparks(hitPos, 15);
+                }
             }
         });
         
@@ -651,12 +678,19 @@ export class Player {
             const angle = Math.acos(attackDir.dot(toBoss));
             
             if (angle < attackAngle) {
-                const damage = this.calculateDamage();
-                boss.takeDamage(damage, this.position);
-                
-                const hitPos = boss.position.clone();
-                hitPos.y += 2;
-                this.game.particleSystem.spawnHitSparks(hitPos, 20);
+                // Check for riposte opportunity
+                if (this.game.combatSystem.canRiposte(boss)) {
+                    // Perform riposte for massive damage
+                    this.game.combatSystem.performRiposte(boss);
+                } else {
+                    // Normal hit
+                    const damage = this.calculateDamage();
+                    boss.takeDamage(damage, this.position);
+                    
+                    const hitPos = boss.position.clone();
+                    hitPos.y += 2;
+                    this.game.particleSystem.spawnHitSparks(hitPos, 20);
+                }
             }
         });
     }
@@ -699,10 +733,19 @@ export class Player {
     // DAMAGE AND DEATH
     // ==========================================
     
-    takeDamage(amount, source) {
+    takeDamage(amount, source, attacker = null) {
         // Check for i-frames during roll
         if (this.hasIFrames) {
             return;
+        }
+        
+        // Check for parry first (timing-based, before block check)
+        if (this.isBlocking && attacker && this.game.combatSystem) {
+            const parried = this.game.combatSystem.attemptParry(attacker);
+            if (parried) {
+                // Successful parry - no damage taken
+                return;
+            }
         }
         
         // Check for blocking
@@ -722,13 +765,13 @@ export class Player {
             const angle = Math.acos(facingDir.dot(toAttacker));
             
             if (angle < Math.PI / 2) {
-                // Successfully blocked
+                // Successfully blocked (reduced damage, 70% reduction)
                 const staminaDrain = amount * 0.5;
                 this.stamina -= staminaDrain;
                 this.staminaRegenTimer = this.staminaRegenDelay;
                 
-                // Reduced damage through block
-                amount *= 0.2;
+                // Reduced damage through block (70% reduction as per spec)
+                amount *= 0.3;
                 
                 // Spawn block sparks
                 this.game.particleSystem.spawnHitSparks(

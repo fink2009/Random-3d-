@@ -44,11 +44,24 @@ export class HUD {
             const staminaPercent = player.getStaminaPercent() * 100;
             this.staminaFill.style.width = `${staminaPercent}%`;
             
-            // Flash stamina bar when low
-            if (staminaPercent < 20) {
+            // Flash stamina bar red when empty and gray out when exhausted
+            if (staminaPercent < 5) {
+                // Exhausted - gray out the bar and flash red
+                this.staminaFill.style.background = 'linear-gradient(180deg, #666 0%, #444 50%, #333 100%)';
+                this.staminaFill.style.opacity = Math.sin(Date.now() * 0.015) * 0.4 + 0.6;
+                
+                // Add exhausted class to the bar container for additional styling
+                this.staminaFill.parentElement.classList.add('exhausted');
+            } else if (staminaPercent < 20) {
+                // Low stamina - flash with reduced opacity
+                this.staminaFill.style.background = 'linear-gradient(180deg, #cc8800 0%, #996600 50%, #664400 100%)';
                 this.staminaFill.style.opacity = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                this.staminaFill.parentElement.classList.remove('exhausted');
             } else {
+                // Normal stamina
+                this.staminaFill.style.background = 'linear-gradient(180deg, #228b22 0%, #006400 50%, #004d00 100%)';
                 this.staminaFill.style.opacity = 1;
+                this.staminaFill.parentElement.classList.remove('exhausted');
             }
         }
         
@@ -172,5 +185,33 @@ export class HUD {
         setTimeout(() => {
             popup.remove();
         }, 3000);
+    }
+    
+    showMessage(text, duration = 3000) {
+        // Create a Soulsborne-style message notification
+        const message = document.createElement('div');
+        message.className = 'game-message';
+        message.textContent = text;
+        message.style.cssText = `
+            position: fixed;
+            top: 35%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #d4af37;
+            font-size: 28px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 4px #000, 0 0 10px rgba(212, 175, 55, 0.5);
+            opacity: 0;
+            animation: message-appear ${duration / 1000}s ease-in-out forwards;
+            z-index: 900;
+            pointer-events: none;
+        `;
+        
+        document.body.appendChild(message);
+        
+        setTimeout(() => {
+            message.remove();
+        }, duration);
     }
 }
