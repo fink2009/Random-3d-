@@ -80,6 +80,9 @@ export class HUD {
         // Update debug info
         this.updateDebugInfo();
         
+        // Update time indicator
+        this.updateTimeIndicator();
+        
         // Clean up damage numbers
         this.cleanupDamageNumbers();
     }
@@ -93,6 +96,21 @@ export class HUD {
             document.getElementById('position').textContent = 
                 `Pos: ${player.position.x.toFixed(1)}, ${player.position.y.toFixed(1)}, ${player.position.z.toFixed(1)}`;
             document.getElementById('state').textContent = `State: ${player.state}`;
+        }
+    }
+    
+    updateTimeIndicator() {
+        const timeIndicator = document.getElementById('time-indicator');
+        if (timeIndicator && this.game.visualEffects) {
+            const timeString = this.game.visualEffects.getTimeString();
+            const timeOfDay = this.game.visualEffects.getTimeOfDay();
+            const icons = {
+                'day': '☀️',
+                'golden_hour': '🌅',
+                'twilight': '🌆',
+                'night': '🌙'
+            };
+            timeIndicator.textContent = `${icons[timeOfDay] || ''} ${timeString}`;
         }
     }
     

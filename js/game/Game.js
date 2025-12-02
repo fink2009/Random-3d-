@@ -13,11 +13,19 @@ import { World } from './World.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Boss } from '../entities/Boss.js';
+import { Wolf, StoneGolem, DarkKnight, CrystalLizard } from '../entities/EnemyTypes.js';
+import { DragonBoss } from '../entities/DragonBoss.js';
 import { CombatSystem } from '../combat/CombatSystem.js';
 import { HUD } from '../ui/HUD.js';
 import { ParticleSystem } from '../utils/ParticleSystem.js';
 import { ProgressionSystem } from '../systems/ProgressionSystem.js';
 import { CheckpointSystem } from '../systems/CheckpointSystem.js';
+import { MagicSystem } from '../systems/MagicSystem.js';
+import { WeaponSystem } from '../systems/WeaponSystem.js';
+import { InventorySystem } from '../systems/InventorySystem.js';
+import { VisualEffects } from '../systems/VisualEffects.js';
+import { NPCSystem } from '../systems/NPCSystem.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 export class Game {
     constructor() {
@@ -43,6 +51,12 @@ export class Game {
         this.particleSystem = null;
         this.progressionSystem = null;
         this.checkpointSystem = null;
+        this.magicSystem = null;
+        this.weaponSystem = null;
+        this.inventorySystem = null;
+        this.visualEffects = null;
+        this.npcSystem = null;
+        this.saveSystem = null;
         
         // Entities
         this.enemies = [];
@@ -174,6 +188,31 @@ export class Game {
         // Checkpoint system
         this.checkpointSystem = new CheckpointSystem(this);
         
+        // Magic system
+        this.magicSystem = new MagicSystem(this);
+        
+        // Weapon system
+        this.weaponSystem = new WeaponSystem(this);
+        this.weaponSystem.updatePlayerWeaponMesh();
+        
+        // Inventory system
+        this.inventorySystem = new InventorySystem(this);
+        this.inventorySystem.initializeDefaultItems();
+        
+        // Visual effects (enhanced lighting, weather, etc.)
+        this.visualEffects = new VisualEffects(this);
+        
+        // NPC system
+        this.npcSystem = new NPCSystem(this);
+        
+        // Save system
+        this.saveSystem = new SaveSystem(this);
+        
+        // Try to load saved game
+        if (this.saveSystem.hasSaveData()) {
+            this.saveSystem.loadGame();
+        }
+        
         // HUD
         this.hud = new HUD(this);
     }
@@ -198,11 +237,72 @@ export class Game {
             this.enemies.push(enemy);
         });
         
-        // Spawn a boss in the distance
+        // Spawn wolves (pack creatures)
+        const wolfSpawns = [
+            { x: 45, z: 25 },
+            { x: 48, z: 28 },
+            { x: 42, z: 30 },
+            { x: -50, z: -40 },
+            { x: -53, z: -38 },
+        ];
+        
+        wolfSpawns.forEach(spawn => {
+            const wolf = new Wolf(this);
+            const y = this.world.getHeightAt(spawn.x, spawn.z);
+            wolf.init(spawn.x, y, spawn.z);
+            this.enemies.push(wolf);
+        });
+        
+        // Spawn Stone Golems
+        const golemSpawns = [
+            { x: 60, z: -50 },
+            { x: -70, z: 60 },
+        ];
+        
+        golemSpawns.forEach(spawn => {
+            const golem = new StoneGolem(this);
+            const y = this.world.getHeightAt(spawn.x, spawn.z);
+            golem.init(spawn.x, y, spawn.z);
+            this.enemies.push(golem);
+        });
+        
+        // Spawn Dark Knights (elite enemies)
+        const knightSpawns = [
+            { x: 65, z: 65 },
+            { x: -60, z: -55 },
+        ];
+        
+        knightSpawns.forEach(spawn => {
+            const knight = new DarkKnight(this);
+            const y = this.world.getHeightAt(spawn.x, spawn.z);
+            knight.init(spawn.x, y, spawn.z);
+            this.enemies.push(knight);
+        });
+        
+        // Spawn Crystal Lizards (rare material drops)
+        const lizardSpawns = [
+            { x: 35, z: -45 },
+            { x: -30, z: 50 },
+        ];
+        
+        lizardSpawns.forEach(spawn => {
+            const lizard = new CrystalLizard(this);
+            const y = this.world.getHeightAt(spawn.x, spawn.z);
+            lizard.init(spawn.x, y, spawn.z);
+            this.enemies.push(lizard);
+        });
+        
+        // Spawn Boss 1: Corrupted Knight
         const boss = new Boss(this, 'Corrupted Knight');
         const bossY = this.world.getHeightAt(80, 80);
         boss.init(80, bossY, 80);
         this.bosses.push(boss);
+        
+        // Spawn Boss 2: Ancient Dragon (in a different area)
+        const dragon = new DragonBoss(this, 'Ancient Dragon');
+        const dragonY = this.world.getHeightAt(-80, -80);
+        dragon.init(-80, dragonY, -80);
+        this.bosses.push(dragon);
     }
     
     setupEventListeners() {
@@ -247,8 +347,10 @@ export class Game {
     }
     
     update() {
-        // Update day/night cycle
-        this.updateDayNightCycle();
+        // Update visual effects (handles day/night cycle now)
+        if (this.visualEffects) {
+            this.visualEffects.update(this.deltaTime);
+        }
         
         // Update player
         if (this.player) {
@@ -271,6 +373,26 @@ export class Game {
         
         // Update combat system
         this.combatSystem.update(this.deltaTime);
+        
+        // Update magic system
+        if (this.magicSystem) {
+            this.magicSystem.update(this.deltaTime);
+        }
+        
+        // Update inventory system
+        if (this.inventorySystem) {
+            this.inventorySystem.update(this.deltaTime);
+        }
+        
+        // Update NPC system
+        if (this.npcSystem) {
+            this.npcSystem.update(this.deltaTime);
+        }
+        
+        // Update save system
+        if (this.saveSystem) {
+            this.saveSystem.update(this.deltaTime);
+        }
         
         // Update particles
         this.particleSystem.update(this.deltaTime);
