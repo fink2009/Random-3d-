@@ -406,9 +406,14 @@ export class NPCSystem {
         
         // Check for services
         if (this.activeNPC && this.activeNPC.services.length > 0) {
-            // Could open shop or level up menu here
+            // Open shop if merchant
+            if (this.activeNPC.services.includes('shop')) {
+                this.openShop(this.activeNPC);
+                return;
+            }
+            
+            // Open level up menu
             if (this.activeNPC.services.includes('levelUp')) {
-                // Open level up menu
                 if (this.game.progressionSystem.canLevelUp()) {
                     this.game.progressionSystem.openLevelUpMenu();
                     return;
@@ -416,6 +421,101 @@ export class NPCSystem {
             }
         }
         
+        this.activeNPC = null;
+        this.game.isPaused = false;
+    }
+    
+    openShop(npc) {
+        const shopMenu = document.getElementById('shop-menu');
+        const shopTitle = document.getElementById('shop-title');
+        const shopSoulsAmount = document.getElementById('shop-souls-amount');
+        const shopItemsGrid = document.getElementById('shop-items-grid');
+        
+        if (!shopMenu || !npc.inventory) return;
+        
+        // Set shop title
+        shopTitle.textContent = npc.name;
+        
+        // Update player souls display
+        const playerSouls = this.game.progressionSystem.souls;
+        shopSoulsAmount.textContent = playerSouls.toLocaleString();
+        
+        // Clear previous items
+        shopItemsGrid.innerHTML = '';
+        
+        // Populate shop items
+        npc.inventory.forEach((shopItem, index) => {
+            const itemDef = this.game.inventorySystem.itemDatabase[shopItem.id];
+            if (!itemDef) return;
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'shop-item';
+            itemDiv.innerHTML = `
+                <div class="shop-item-icon">${itemDef.icon}</div>
+                <div class="shop-item-name">${itemDef.name}</div>
+                <div class="shop-item-description">${itemDef.description}</div>
+                <div class="shop-item-price">${shopItem.price} Souls</div>
+                <button class="shop-buy-btn" data-item-id="${shopItem.id}" data-price="${shopItem.price}">Buy</button>
+            `;
+            shopItemsGrid.appendChild(itemDiv);
+        });
+        
+        // Add buy button handlers
+        const buyButtons = shopItemsGrid.querySelectorAll('.shop-buy-btn');
+        buyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = btn.getAttribute('data-item-id');
+                const price = parseInt(btn.getAttribute('data-price'));
+                this.buyItem(itemId, price);
+            });
+        });
+        
+        // Show shop menu
+        shopMenu.classList.remove('hidden');
+        this.game.isPaused = true;
+        
+        // Setup close button
+        const closeBtn = document.getElementById('close-shop-btn');
+        if (closeBtn) {
+            closeBtn.onclick = () => this.closeShop();
+        }
+    }
+    
+    buyItem(itemId, price) {
+        const playerSouls = this.game.progressionSystem.souls;
+        
+        // Check if player has enough souls
+        if (playerSouls < price) {
+            if (this.game.hud) {
+                this.game.hud.showMessage('Not enough souls!', 2000);
+            }
+            return;
+        }
+        
+        // Deduct souls
+        this.game.progressionSystem.addSouls(-price);
+        
+        // Add item to inventory
+        this.game.inventorySystem.addItem(itemId, 1);
+        
+        // Show confirmation
+        const itemDef = this.game.inventorySystem.itemDatabase[itemId];
+        if (this.game.hud && itemDef) {
+            this.game.hud.showMessage(`Purchased ${itemDef.name}!`, 2000);
+        }
+        
+        // Update souls display in shop
+        const shopSoulsAmount = document.getElementById('shop-souls-amount');
+        if (shopSoulsAmount) {
+            shopSoulsAmount.textContent = this.game.progressionSystem.souls.toLocaleString();
+        }
+        
+        // Play purchase sound (if available)
+        // this.game.audioSystem?.playSound('purchase');
+    }
+    
+    closeShop() {
+        document.getElementById('shop-menu').classList.add('hidden');
         this.activeNPC = null;
         this.game.isPaused = false;
     }
