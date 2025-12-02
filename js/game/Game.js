@@ -24,6 +24,8 @@ import { MagicSystem } from '../systems/MagicSystem.js';
 import { WeaponSystem } from '../systems/WeaponSystem.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 import { VisualEffects } from '../systems/VisualEffects.js';
+import { NPCSystem } from '../systems/NPCSystem.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 export class Game {
     constructor() {
@@ -53,6 +55,8 @@ export class Game {
         this.weaponSystem = null;
         this.inventorySystem = null;
         this.visualEffects = null;
+        this.npcSystem = null;
+        this.saveSystem = null;
         
         // Entities
         this.enemies = [];
@@ -197,6 +201,17 @@ export class Game {
         
         // Visual effects (enhanced lighting, weather, etc.)
         this.visualEffects = new VisualEffects(this);
+        
+        // NPC system
+        this.npcSystem = new NPCSystem(this);
+        
+        // Save system
+        this.saveSystem = new SaveSystem(this);
+        
+        // Try to load saved game
+        if (this.saveSystem.hasSaveData()) {
+            this.saveSystem.loadGame();
+        }
         
         // HUD
         this.hud = new HUD(this);
@@ -367,6 +382,16 @@ export class Game {
         // Update inventory system
         if (this.inventorySystem) {
             this.inventorySystem.update(this.deltaTime);
+        }
+        
+        // Update NPC system
+        if (this.npcSystem) {
+            this.npcSystem.update(this.deltaTime);
+        }
+        
+        // Update save system
+        if (this.saveSystem) {
+            this.saveSystem.update(this.deltaTime);
         }
         
         // Update particles
