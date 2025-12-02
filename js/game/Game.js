@@ -463,6 +463,15 @@ export class Game {
         
         // Pause menu buttons
         document.getElementById('resume-btn')?.addEventListener('click', () => this.resume());
+        document.getElementById('inventory-btn')?.addEventListener('click', () => {
+            this.inventorySystem.toggleInventory();
+        });
+        document.getElementById('stats-btn')?.addEventListener('click', () => {
+            // Show character stats UI
+            if (this.progressionSystem) {
+                this.showCharacterStats();
+            }
+        });
         document.getElementById('quit-btn')?.addEventListener('click', () => this.quit());
     }
     
@@ -691,6 +700,17 @@ export class Game {
     resume() {
         this.isPaused = false;
         document.getElementById('pause-menu').classList.add('hidden');
+        // Re-lock pointer for camera control
+        this.canvas.requestPointerLock();
+    }
+    
+    showCharacterStats() {
+        // Show character stats screen (reuse level up menu for now)
+        const levelUpMenu = document.getElementById('level-up-menu');
+        if (levelUpMenu) {
+            levelUpMenu.classList.remove('hidden');
+            this.progressionSystem.updateLevelUpUI();
+        }
     }
     
     quit() {

@@ -173,7 +173,7 @@ export class SettingsMenu {
             this.toggleFPS(e.target.checked);
         });
         
-        // Keyboard shortcut to open settings (G key)
+        // Keyboard shortcut to open settings (G key) and close (ESC key)
         document.addEventListener('keydown', (e) => {
             // Ignore if typing in an input field
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
@@ -186,6 +186,12 @@ export class SettingsMenu {
                 } else {
                     this.close();
                 }
+            }
+            
+            // ESC key closes settings menu
+            if (e.key === 'Escape' && this.isOpen) {
+                e.stopPropagation(); // Prevent pause menu from also handling ESC
+                this.close();
             }
         });
     }
