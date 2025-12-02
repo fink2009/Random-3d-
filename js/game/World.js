@@ -117,7 +117,7 @@ export class World {
         geometry.computeVertexNormals();
         
         // Create terrain material - use Basic for potato mode (no lighting calculations)
-        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() || false;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         const material = useBasicMaterial 
             ? new THREE.MeshBasicMaterial({
@@ -384,7 +384,7 @@ export class World {
         const settings = this.game.settings || {};
         const treeCount = settings.maxTrees || 15;
         const treeDetail = settings.treeDetail || 4;
-        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() || false;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometries for tree parts
         const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, Math.max(4, treeDetail));
@@ -463,7 +463,7 @@ export class World {
         // Use rock count from quality settings
         const settings = this.game.settings || {};
         const rockCount = settings.maxRocks || 10;
-        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() || false;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometry for rocks
         const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
@@ -529,7 +529,7 @@ export class World {
     
     createRuin(x, y, z, isBossArena = false) {
         // Use simpler material for potato mode
-        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() || false;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         const stoneMaterial = useBasicMaterial
             ? new THREE.MeshBasicMaterial({ color: 0x6a6a6a })
@@ -627,7 +627,7 @@ export class World {
         // Get grass count from quality settings
         const settings = this.game.settings || {};
         const grassCount = settings.maxGrass || settings.environmentParticles || 50;
-        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() || false;
+        const useBasicMaterial = this.game.performanceSettings?.shouldUseBasicMaterial() ?? false;
         
         // Create shared geometry and material for grass
         const grassGeometry = new THREE.PlaneGeometry(0.3, 0.5);

@@ -312,7 +312,9 @@ export class PerformanceSettings {
      * @returns {boolean} true if MeshBasicMaterial should be used instead of Lambert/Standard
      */
     shouldUseBasicMaterial() {
-        return !this.settings.useLambertMaterial && this.settings.lightingSimplified;
+        // Use BasicMaterial when useLambertMaterial is false (potato mode)
+        // This bypasses all lighting calculations for maximum performance
+        return this.settings.useLambertMaterial === false;
     }
     
     /**

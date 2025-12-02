@@ -530,7 +530,7 @@ export class Game {
         
         // Update particles at configured rate (or skip if disabled)
         const particleRate = settings.particleUpdateRate || 1;
-        if (settings.particlesEnabled && frame % particleRate === 0 && this.particleSystem) {
+        if (settings.particlesEnabled !== false && frame % particleRate === 0 && this.particleSystem) {
             this.particleSystem.update(this.deltaTime * particleRate);
         }
         

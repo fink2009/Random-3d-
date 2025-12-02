@@ -175,6 +175,11 @@ export class SettingsMenu {
         
         // Keyboard shortcut to open settings (G key)
         document.addEventListener('keydown', (e) => {
+            // Ignore if typing in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                return;
+            }
+            
             if (e.key === 'g' || e.key === 'G') {
                 if (!this.isOpen) {
                     this.open();
@@ -213,7 +218,7 @@ export class SettingsMenu {
         // Update performance info
         document.getElementById('current-fps').textContent = this.game.fps || 0;
         document.getElementById('active-enemies').textContent = 
-            this.game.enemies.filter(e => e.isAlive).length;
+            this.game.enemies?.filter(e => e?.isAlive).length || 0;
         
         // Count visible objects (approximate)
         let visibleCount = 0;
