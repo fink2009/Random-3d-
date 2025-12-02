@@ -462,8 +462,6 @@ export class World {
     }
     
     createRuin(x, y, z, isBossArena = false) {
-        const group = new THREE.Group();
-        
         const stoneMaterial = new THREE.MeshStandardMaterial({
             color: 0x6a6a6a,
             roughness: 0.95,
@@ -471,78 +469,88 @@ export class World {
         });
         
         if (isBossArena) {
-            // Create a circular boss arena
-            const floorGeometry = new THREE.CylinderGeometry(25, 25, 0.5, 32);
-            const floor = new THREE.Mesh(floorGeometry, stoneMaterial);
-            floor.position.y = 0.25;
-            floor.receiveShadow = true;
-            group.add(floor);
+            // Boss arena - no separate floor, use terrain as ground
+            // Place pillars directly at terrain heights for proper grounding
             
-            // Pillars around arena
+            // Pillars around arena - placed individually on terrain
             for (let i = 0; i < 8; i++) {
                 const angle = (i / 8) * Math.PI * 2;
-                const pillarX = Math.cos(angle) * 22;
-                const pillarZ = Math.sin(angle) * 22;
+                const pillarX = x + Math.cos(angle) * 22;
+                const pillarZ = z + Math.sin(angle) * 22;
+                const pillarY = this.getHeightAt(pillarX, pillarZ);
                 
+                const pillarHeight = 8;
                 const pillar = new THREE.Mesh(
-                    new THREE.CylinderGeometry(1, 1.2, 8, 8),
+                    new THREE.CylinderGeometry(1, 1.2, pillarHeight, 8),
                     stoneMaterial
                 );
-                pillar.position.set(pillarX, 4, pillarZ);
-                pillar.castShadow = true;
                 
-                // Some pillars are broken
+                // Some pillars are broken - scale them down
+                let scaleY = 1;
                 if (Math.random() > 0.5) {
-                    pillar.scale.y = 0.3 + Math.random() * 0.5;
-                    pillar.position.y *= pillar.scale.y;
+                    scaleY = 0.3 + Math.random() * 0.5;
+                    pillar.scale.y = scaleY;
                 }
                 
-                group.add(pillar);
+                // Position pillar at terrain height
+                // Center of scaled pillar is at (pillarHeight * scaleY) / 2
+                pillar.position.set(pillarX, pillarY + (pillarHeight * scaleY) / 2, pillarZ);
+                pillar.castShadow = true;
+                
+                this.scene.add(pillar);
+                this.structures.push(pillar);
             }
         } else {
-            // Regular ruins - scattered walls and pillars
+            // Regular ruins - place walls and pillars directly at terrain heights
             const wallCount = 3 + Math.floor(Math.random() * 4);
             
             for (let i = 0; i < wallCount; i++) {
                 const wallWidth = 2 + Math.random() * 6;
                 const wallHeight = 2 + Math.random() * 4;
                 
+                // Calculate world position for this wall
+                const wallOffsetX = (Math.random() - 0.5) * 15;
+                const wallOffsetZ = (Math.random() - 0.5) * 15;
+                const wallX = x + wallOffsetX;
+                const wallZ = z + wallOffsetZ;
+                const wallY = this.getHeightAt(wallX, wallZ);
+                
                 const wall = new THREE.Mesh(
                     new THREE.BoxGeometry(wallWidth, wallHeight, 0.8),
                     stoneMaterial
                 );
                 
-                wall.position.set(
-                    (Math.random() - 0.5) * 15,
-                    wallHeight / 2,
-                    (Math.random() - 0.5) * 15
-                );
+                wall.position.set(wallX, wallY + wallHeight / 2, wallZ);
                 wall.rotation.y = Math.random() * Math.PI;
                 wall.castShadow = true;
                 wall.receiveShadow = true;
                 
-                group.add(wall);
+                this.scene.add(wall);
+                this.structures.push(wall);
             }
             
             // Add some broken pillars
             for (let i = 0; i < 3; i++) {
+                const pillarHeight = 1 + Math.random() * 3;
+                
+                // Calculate world position for this pillar
+                const pillarOffsetX = (Math.random() - 0.5) * 12;
+                const pillarOffsetZ = (Math.random() - 0.5) * 12;
+                const pillarX = x + pillarOffsetX;
+                const pillarZ = z + pillarOffsetZ;
+                const pillarY = this.getHeightAt(pillarX, pillarZ);
+                
                 const pillar = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.5, 0.6, 1 + Math.random() * 3, 8),
+                    new THREE.CylinderGeometry(0.5, 0.6, pillarHeight, 8),
                     stoneMaterial
                 );
-                pillar.position.set(
-                    (Math.random() - 0.5) * 12,
-                    pillar.geometry.parameters.height / 2,
-                    (Math.random() - 0.5) * 12
-                );
+                pillar.position.set(pillarX, pillarY + pillarHeight / 2, pillarZ);
                 pillar.castShadow = true;
-                group.add(pillar);
+                
+                this.scene.add(pillar);
+                this.structures.push(pillar);
             }
         }
-        
-        group.position.set(x, y, z);
-        this.scene.add(group);
-        this.structures.push(group);
     }
     
     generateDecorations() {
