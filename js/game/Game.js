@@ -26,6 +26,8 @@ import { InventorySystem } from '../systems/InventorySystem.js';
 import { VisualEffects } from '../systems/VisualEffects.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { PerformanceSettings } from '../utils/PerformanceSettings.js';
+import { SettingsMenu } from '../ui/SettingsMenu.js';
 
 export class Game {
     constructor() {
@@ -72,7 +74,11 @@ export class Game {
         this.fps = 0;
         this.lastFpsUpdate = 0;
         
-        // Quality settings for performance optimization
+        // Performance settings system
+        this.performanceSettings = new PerformanceSettings();
+        this.settingsMenu = null;
+        
+        // Legacy quality settings (kept for compatibility, but use performanceSettings instead)
         this.qualitySettings = {
             low: {
                 shadowMapSize: 512,
@@ -114,12 +120,29 @@ export class Game {
         this.settings = this.qualitySettings[this.currentQuality];
     }
     
+    initializePerformanceSettings() {
+        // Try to load saved settings first
+        if (!this.performanceSettings.loadFromLocalStorage()) {
+            // If no saved settings, auto-detect and apply recommended preset
+            const recommendedPreset = PerformanceSettings.getRecommendedPreset();
+            console.log(`Auto-detected recommended preset: ${recommendedPreset}`);
+            this.performanceSettings.applyPreset(recommendedPreset);
+        }
+        
+        // Update legacy settings object for compatibility
+        this.settings = this.performanceSettings.getSettings();
+        this.currentQuality = this.performanceSettings.getCurrentPreset();
+    }
+    
     init() {
+        // Initialize performance settings FIRST
+        this.initializePerformanceSettings();
         this.setupRenderer();
         this.setupScene();
         this.setupLighting();
         this.setupPostProcessing();
         this.setupSystems();
+        this.setupSettingsMenu();
         this.setupEventListeners();
         this.spawnEnemies();
         
@@ -134,17 +157,27 @@ export class Game {
         });
     }
     
+    setupSettingsMenu() {
+        this.settingsMenu = new SettingsMenu(this);
+    }
+    
     setupRenderer() {
-        // Disable antialias in WebGL for performance (use post-process AA instead)
+        // Use performance settings for renderer configuration
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            antialias: false,
-            powerPreference: 'high-performance'
+            antialias: this.settings.antialias,
+            powerPreference: this.settings.powerPreference || 'low-power'
         });
         
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        // Cap pixel ratio based on quality settings for performance
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.settings.pixelRatio));
+        // Apply render scale for lower resolution rendering
+        const width = window.innerWidth * this.settings.renderScale;
+        const height = window.innerHeight * this.settings.renderScale;
+        this.renderer.setSize(width, height, false);
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        
+        // CRITICAL: Cap pixel ratio at 1 for low-end devices
+        this.renderer.setPixelRatio(Math.min(1, this.settings.pixelRatio));
         
         // Shadow settings based on quality
         this.renderer.shadowMap.enabled = this.settings.shadowsEnabled;
@@ -153,31 +186,59 @@ export class Game {
             this.renderer.shadowMap.type = THREE.PCFShadowMap;
         }
         
-        // Use simpler tone mapping for performance
-        this.renderer.toneMapping = THREE.LinearToneMapping;
+        // Use simplest tone mapping for potato mode
+        this.renderer.toneMapping = this.settings.postProcessing ? THREE.LinearToneMapping : THREE.NoToneMapping;
         this.renderer.toneMappingExposure = 1.0;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         
         // Disable auto clear for manual render pass control
         this.renderer.autoClear = true;
+        
+        console.log(`Renderer initialized with ${this.currentQuality} settings`);
+        console.log(`Render scale: ${this.settings.renderScale}, Pixel ratio: ${this.settings.pixelRatio}`);
     }
     
     setupScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a2e);
-        this.scene.fog = new THREE.FogExp2(0x1a1a2e, 0.008);
+        // Use simple background color (cheaper than skybox for potato mode)
+        this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
         
-        // Camera
+        // Apply fog based on performance settings (helps hide pop-in)
+        const fogColor = 0x87CEEB;
+        this.scene.fog = new THREE.Fog(
+            fogColor, 
+            this.settings.fogNear || 30, 
+            this.settings.fogFar || 80
+        );
+        
+        // Camera with configurable far plane
         this.camera = new THREE.PerspectiveCamera(
             75,
             window.innerWidth / window.innerHeight,
             0.1,
-            1000
+            this.settings.cameraFar || 100
         );
         this.camera.position.set(0, 5, 10);
     }
     
     setupLighting() {
+        // For potato mode: Use ONLY ambient light (no directional light calculations)
+        if (this.settings.maxLights === 1 || this.settings.lightingSimplified) {
+            // Single ambient light - brightest and cheapest
+            this.ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            this.scene.add(this.ambientLight);
+            
+            // Optional: very weak directional for minimal shading
+            if (this.settings.maxLights > 1 && !this.settings.useLambertMaterial) {
+                this.directionalLight = new THREE.DirectionalLight(0xffeedd, 0.3);
+                this.directionalLight.position.set(50, 100, 50);
+                this.directionalLight.castShadow = false;
+                this.scene.add(this.directionalLight);
+            }
+            return;
+        }
+        
+        // Standard lighting for medium/high quality
         // Ambient light
         this.ambientLight = new THREE.AmbientLight(0x404060, 0.4);
         this.scene.add(this.ambientLight);
@@ -207,9 +268,13 @@ export class Game {
         
         this.scene.add(this.directionalLight);
         
-        // Hemisphere light for natural sky lighting
-        this.hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362312, 0.5);
-        this.scene.add(this.hemisphereLight);
+        // Hemisphere light for natural sky lighting (only if not simplified)
+        if (!this.settings.lightingSimplified) {
+            this.hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x362312, 0.5);
+            this.scene.add(this.hemisphereLight);
+        }
+        
+        console.log(`Lighting setup: ${this.settings.maxLights} lights, shadows: ${this.settings.shadows}`);
     }
     
     setupPostProcessing() {
@@ -288,6 +353,9 @@ export class Game {
     }
     
     spawnEnemies() {
+        // Respect maxEnemies setting for potato mode
+        const maxEnemies = this.settings.maxEnemies || 3;
+        
         // Spawn basic enemies around the world
         const spawnPoints = [
             { x: 20, z: 20, type: 'melee' },
@@ -300,67 +368,81 @@ export class Game {
             { x: -40, z: -20, type: 'heavy' },
         ];
         
-        spawnPoints.forEach(spawn => {
+        // Limit basic enemies based on settings
+        const limitedSpawns = spawnPoints.slice(0, Math.min(maxEnemies, spawnPoints.length));
+        
+        limitedSpawns.forEach(spawn => {
             const enemy = new Enemy(this, spawn.type);
             const y = this.world.getHeightAt(spawn.x, spawn.z);
             enemy.init(spawn.x, y, spawn.z);
             this.enemies.push(enemy);
         });
         
-        // Spawn wolves (pack creatures)
-        const wolfSpawns = [
-            { x: 45, z: 25 },
-            { x: 48, z: 28 },
-            { x: 42, z: 30 },
-            { x: -50, z: -40 },
-            { x: -53, z: -38 },
-        ];
+        console.log(`Spawned ${limitedSpawns.length} basic enemies (max: ${maxEnemies})`);
         
-        wolfSpawns.forEach(spawn => {
-            const wolf = new Wolf(this);
-            const y = this.world.getHeightAt(spawn.x, spawn.z);
-            wolf.init(spawn.x, y, spawn.z);
-            this.enemies.push(wolf);
-        });
+        // Only spawn additional enemy types if we have room in maxEnemies budget
+        const remainingSlots = maxEnemies - this.enemies.length;
         
-        // Spawn Stone Golems
-        const golemSpawns = [
-            { x: 60, z: -50 },
-            { x: -70, z: 60 },
-        ];
+        if (remainingSlots > 0) {
+            // Spawn wolves (pack creatures) - only if maxEnemies > 3
+            const wolfSpawns = [
+                { x: 45, z: 25 },
+                { x: 48, z: 28 },
+            ].slice(0, Math.min(remainingSlots, 2));
+            
+            wolfSpawns.forEach(spawn => {
+                const wolf = new Wolf(this);
+                const y = this.world.getHeightAt(spawn.x, spawn.z);
+                wolf.init(spawn.x, y, spawn.z);
+                this.enemies.push(wolf);
+            });
+        }
         
-        golemSpawns.forEach(spawn => {
-            const golem = new StoneGolem(this);
-            const y = this.world.getHeightAt(spawn.x, spawn.z);
-            golem.init(spawn.x, y, spawn.z);
-            this.enemies.push(golem);
-        });
+        // Skip other enemy types for potato mode (maxEnemies <= 5)
+        if (maxEnemies > 5) {
+            // Spawn Stone Golems
+            const golemSpawns = [
+                { x: 60, z: -50 },
+                { x: -70, z: 60 },
+            ];
+            
+            golemSpawns.forEach(spawn => {
+                const golem = new StoneGolem(this);
+                const y = this.world.getHeightAt(spawn.x, spawn.z);
+                golem.init(spawn.x, y, spawn.z);
+                this.enemies.push(golem);
+            });
+        }
         
-        // Spawn Dark Knights (elite enemies)
-        const knightSpawns = [
-            { x: 65, z: 65 },
-            { x: -60, z: -55 },
-        ];
+        if (maxEnemies > 8) {
+            // Spawn Dark Knights (elite enemies)
+            const knightSpawns = [
+                { x: 65, z: 65 },
+                { x: -60, z: -55 },
+            ];
+            
+            knightSpawns.forEach(spawn => {
+                const knight = new DarkKnight(this);
+                const y = this.world.getHeightAt(spawn.x, spawn.z);
+                knight.init(spawn.x, y, spawn.z);
+                this.enemies.push(knight);
+            });
+        }
         
-        knightSpawns.forEach(spawn => {
-            const knight = new DarkKnight(this);
-            const y = this.world.getHeightAt(spawn.x, spawn.z);
-            knight.init(spawn.x, y, spawn.z);
-            this.enemies.push(knight);
-        });
-        
-        // Spawn Crystal Lizards (rare material drops)
-        const lizardSpawns = [
-            { x: 35, z: -45 },
-            { x: -30, z: 50 },
-        ];
-        
-        lizardSpawns.forEach(spawn => {
-            const lizard = new CrystalLizard(this);
-            const y = this.world.getHeightAt(spawn.x, spawn.z);
-            lizard.init(spawn.x, y, spawn.z);
-            this.enemies.push(lizard);
-        });
+        if (maxEnemies > 10) {
+            // Spawn Crystal Lizards (rare material drops)
+            const lizardSpawns = [
+                { x: 35, z: -45 },
+                { x: -30, z: 50 },
+            ];
+            
+            lizardSpawns.forEach(spawn => {
+                const lizard = new CrystalLizard(this);
+                const y = this.world.getHeightAt(spawn.x, spawn.z);
+                lizard.init(spawn.x, y, spawn.z);
+                this.enemies.push(lizard);
+            });
+        }
         
         // Spawn Boss 1: Corrupted Knight
         const boss = new Boss(this, 'Corrupted Knight');
@@ -409,6 +491,11 @@ export class Game {
             this.fps = this.frameCount;
             this.frameCount = 0;
             this.lastFpsUpdate = this.elapsedTime;
+            
+            // Update FPS display
+            if (this.settingsMenu) {
+                this.settingsMenu.updateFPS(this.fps);
+            }
         }
         
         if (!this.isPaused && !this.isGameOver) {
@@ -419,8 +506,9 @@ export class Game {
     }
     
     update() {
-        // Staggered updates for performance optimization
+        // Staggered updates for performance optimization using configured rates
         const frame = this.frameCount;
+        const settings = this.settings;
         
         // Update player every frame (critical)
         if (this.player) {
@@ -440,12 +528,16 @@ export class Game {
             }
         });
         
-        // Update particles every frame
-        this.particleSystem.update(this.deltaTime);
+        // Update particles at configured rate (or skip if disabled)
+        const particleRate = settings.particleUpdateRate || 1;
+        if (settings.particlesEnabled && frame % particleRate === 0 && this.particleSystem) {
+            this.particleSystem.update(this.deltaTime * particleRate);
+        }
         
-        // Update visual effects every 2nd frame
-        if (frame % 2 === 0 && this.visualEffects) {
-            this.visualEffects.update(this.deltaTime * 2);
+        // Update visual effects at configured rate
+        const envRate = settings.environmentUpdateRate || 2;
+        if (frame % envRate === 0 && this.visualEffects) {
+            this.visualEffects.update(this.deltaTime * envRate);
         }
         
         // Update magic system every 2nd frame
@@ -468,8 +560,9 @@ export class Game {
             this.saveSystem.update(this.deltaTime * 10);
         }
         
-        // Update HUD every 3rd frame
-        if (frame % 3 === 0) {
+        // Update HUD at configured rate
+        const hudRate = settings.hudUpdateRate || 3;
+        if (frame % hudRate === 0) {
             this.hud.update();
         }
         
@@ -493,27 +586,38 @@ export class Game {
         const playerPos = this.player ? this.player.position : null;
         if (!playerPos) return;
         
-        const nearDistance = 30;
-        const farDistance = 60;
+        const settings = this.settings;
+        const renderDistance = settings.renderDistance || 40;
+        const nearDistance = renderDistance * 0.5;
+        const farDistance = renderDistance;
+        const enemyUpdateRate = settings.enemyUpdateRate || 1;
         
         this.enemies.forEach((enemy, index) => {
             if (!enemy.isAlive) return;
             
             const distance = enemy.position.distanceTo(playerPos);
             
+            // Cull enemies beyond render distance
+            if (distance > renderDistance * 1.2) {
+                enemy.mesh.visible = false;
+                return;
+            }
+            
+            enemy.mesh.visible = true;
+            
             if (distance < nearDistance) {
-                // Update nearby enemies every frame
-                enemy.update(deltaTime);
+                // Update nearby enemies every frame (or at configured rate)
+                if ((this.frameCount + index) % enemyUpdateRate === 0) {
+                    enemy.update(deltaTime);
+                }
             } else if (distance < farDistance) {
-                // Update mid-range enemies every 2nd frame
-                // Use regular deltaTime to avoid choppy movement
-                if ((this.frameCount + index) % 2 === 0) {
+                // Update mid-range enemies less frequently
+                if ((this.frameCount + index) % (enemyUpdateRate * 2) === 0) {
                     enemy.update(deltaTime);
                 }
             } else {
-                // Update distant enemies every 4th frame
-                // Distant enemies don't need smooth updates
-                if ((this.frameCount + index) % 4 === 0) {
+                // Update distant enemies even less frequently
+                if ((this.frameCount + index) % (enemyUpdateRate * 4) === 0) {
                     enemy.update(deltaTime);
                 }
             }
@@ -674,5 +778,141 @@ export class Game {
         }
         
         console.log(`Quality settings applied: ${level}`);
+    }
+    
+    /**
+     * Apply a quality preset from PerformanceSettings
+     * @param {string} presetName - 'potato', 'low', 'medium', or 'high'
+     */
+    applyQualityPreset(presetName) {
+        console.log(`Applying quality preset: ${presetName}`);
+        
+        // Apply the preset
+        this.performanceSettings.applyPreset(presetName);
+        this.settings = this.performanceSettings.getSettings();
+        this.currentQuality = presetName;
+        
+        // Update renderer settings
+        this.renderer.setPixelRatio(Math.min(1, this.settings.pixelRatio));
+        this.renderer.shadowMap.enabled = this.settings.shadows;
+        this.renderer.toneMapping = this.settings.postProcessing ? THREE.LinearToneMapping : THREE.NoToneMapping;
+        
+        // Update camera far plane and fog
+        this.camera.far = this.settings.cameraFar || 100;
+        this.camera.updateProjectionMatrix();
+        
+        const fogColor = 0x87CEEB;
+        this.scene.fog = new THREE.Fog(fogColor, this.settings.fogNear || 30, this.settings.fogFar || 80);
+        
+        // Update lighting
+        if (this.ambientLight) {
+            this.ambientLight.intensity = this.settings.maxLights === 1 ? 0.8 : 0.4;
+        }
+        
+        // Update shadow settings
+        if (this.directionalLight) {
+            this.directionalLight.castShadow = this.settings.shadows;
+            if (this.settings.shadows) {
+                this.directionalLight.shadow.mapSize.width = this.settings.shadowMapSize || 512;
+                this.directionalLight.shadow.mapSize.height = this.settings.shadowMapSize || 512;
+            }
+        }
+        
+        // Update particle system settings
+        if (this.particleSystem) {
+            this.particleSystem.maxParticles = this.settings.particleCount || 10;
+        }
+        
+        // Update visual effects
+        if (this.visualEffects) {
+            this.visualEffects.applyQualitySettings(this.settings);
+        }
+        
+        // Rebuild world with new settings (optional - may cause lag)
+        // Consider adding a "Apply on restart" option for terrain changes
+        
+        console.log(`✓ Quality preset "${presetName}" applied successfully`);
+    }
+    
+    /**
+     * Apply render scale (resolution multiplier)
+     */
+    applyRenderScale(scale) {
+        const width = window.innerWidth * scale;
+        const height = window.innerHeight * scale;
+        this.renderer.setSize(width, height, false);
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        
+        if (this.composer) {
+            this.composer.setSize(width, height);
+        }
+        
+        console.log(`Render scale applied: ${scale * 100}%`);
+    }
+    
+    /**
+     * Toggle shadows on/off
+     */
+    toggleShadows(enabled) {
+        this.renderer.shadowMap.enabled = enabled;
+        
+        if (this.directionalLight) {
+            this.directionalLight.castShadow = enabled;
+        }
+        
+        // Update all scene objects
+        this.scene.traverse((obj) => {
+            if (obj.isMesh) {
+                if (obj.castShadow !== undefined) {
+                    obj.castShadow = enabled;
+                }
+                if (obj.receiveShadow !== undefined) {
+                    obj.receiveShadow = enabled;
+                }
+            }
+        });
+        
+        console.log(`Shadows ${enabled ? 'enabled' : 'disabled'}`);
+    }
+    
+    /**
+     * Toggle particles on/off
+     */
+    toggleParticles(enabled) {
+        if (this.particleSystem) {
+            this.particleSystem.enabled = enabled;
+        }
+        console.log(`Particles ${enabled ? 'enabled' : 'disabled'}`);
+    }
+    
+    /**
+     * Toggle post-processing on/off
+     */
+    togglePostProcessing(enabled) {
+        // This will take effect on next render
+        this.settings.postProcessing = enabled;
+        console.log(`Post-processing ${enabled ? 'enabled' : 'disabled'}`);
+    }
+    
+    /**
+     * Apply draw distance
+     */
+    applyDrawDistance(distance) {
+        this.settings.renderDistance = distance;
+        
+        // Update camera far plane
+        this.camera.far = Math.max(distance * 2, 100);
+        this.camera.updateProjectionMatrix();
+        
+        // Update fog to match
+        const fogColor = 0x87CEEB;
+        this.scene.fog = new THREE.Fog(
+            fogColor,
+            distance * 0.6,
+            distance * 1.5
+        );
+        
+        console.log(`Draw distance set to: ${distance}m`);
     }
 }

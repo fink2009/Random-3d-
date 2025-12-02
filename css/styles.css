@@ -962,3 +962,165 @@ body {
     font-size: 14px;
     text-shadow: 1px 1px 2px #000;
 }
+
+/* =====================================================
+   SETTINGS MENU
+   ===================================================== */
+
+#settings-menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.settings-container {
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 30px;
+}
+
+.settings-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(100, 80, 60, 0.3);
+}
+
+.settings-section:last-of-type {
+    border-bottom: none;
+}
+
+.settings-section h2 {
+    color: #d4af37;
+    font-size: 18px;
+    margin-bottom: 15px;
+    letter-spacing: 2px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: rgba(20, 20, 20, 0.5);
+    border: 1px solid rgba(100, 80, 60, 0.3);
+}
+
+.setting-row label {
+    color: #ccc;
+    font-size: 14px;
+    flex: 1;
+}
+
+.setting-row select,
+.setting-row input[type="checkbox"] {
+    background: rgba(40, 40, 40, 0.8);
+    color: #d4af37;
+    border: 1px solid rgba(100, 80, 60, 0.6);
+    padding: 5px 10px;
+    font-family: 'Times New Roman', serif;
+    cursor: pointer;
+}
+
+.setting-row select {
+    min-width: 150px;
+}
+
+.setting-row select:hover,
+.setting-row select:focus {
+    border-color: #d4af37;
+    outline: none;
+}
+
+.setting-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 5px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.info-row span:last-child {
+    color: #d4af37;
+    font-weight: bold;
+}
+
+.settings-note {
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 3px;
+}
+
+.settings-note p {
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.settings-note p:last-child {
+    margin-bottom: 0;
+}
+
+.settings-note strong {
+    color: #d4af37;
+}
+
+/* =====================================================
+   FPS COUNTER
+   ===================================================== */
+
+.fps-counter {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 15px;
+    border: 2px solid rgba(100, 80, 60, 0.6);
+    border-radius: 3px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #00ff00;
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
+    z-index: 100;
+    font-family: monospace;
+}
+
+/* =====================================================
+   RESPONSIVE ADJUSTMENTS
+   ===================================================== */
+
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 20px;
+    }
+    
+    .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .setting-row select {
+        width: 100%;
+    }
+}
