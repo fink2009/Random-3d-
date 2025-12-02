@@ -77,15 +77,20 @@ export class World {
         
         for (let i = 0; i < positions.length; i += 3) {
             const x = positions[i];
-            const z = positions[i + 1];
+            const geomY = positions[i + 1];
+            
+            // After mesh rotation (rotation.x = -PI/2), the geometry Y becomes -worldZ
+            // So we need to sample the height at world coordinates (x, -geomY)
+            // This ensures terrain heights match what getHeightAt() returns for the same world position
+            const worldZ = -geomY;
             
             // Get height from height map with safety clamp
-            const height = this.sampleHeightMap(x, z);
+            const height = this.sampleHeightMap(x, worldZ);
             const safeHeight = Number.isFinite(height) ? Math.max(this.minHeight, Math.min(this.maxHeight, height)) : 0;
             positions[i + 2] = safeHeight;
             
-            // Assign colors based on height/biome
-            const color = this.getBiomeColor(safeHeight, x, z);
+            // Assign colors based on height/biome (use world coordinates)
+            const color = this.getBiomeColor(safeHeight, x, worldZ);
             colors.push(color.r, color.g, color.b);
         }
         
