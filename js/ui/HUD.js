@@ -14,6 +14,12 @@ export class HUD {
         this.manaFill = document.getElementById('mana-fill');
         this.soulsAmount = document.getElementById('souls-amount');
         
+        // Minimap
+        this.minimapCanvas = document.getElementById('minimap');
+        this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
+        this.minimapRadius = 75; // Half of 150px
+        this.minimapRange = 50; // Units around player to show
+        
         // Damage numbers
         this.damageNumbers = [];
     }
@@ -76,6 +82,9 @@ export class HUD {
             const souls = this.game.progressionSystem.souls;
             this.soulsAmount.textContent = souls.toLocaleString();
         }
+        
+        // Update minimap
+        this.updateMinimap();
         
         // Update debug info
         this.updateDebugInfo();
@@ -231,5 +240,143 @@ export class HUD {
         setTimeout(() => {
             message.remove();
         }, duration);
+    }
+    
+    updateMinimap() {
+        if (!this.minimapCtx) return;
+        
+        const ctx = this.minimapCtx;
+        const player = this.game.player;
+        if (!player) return;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, 150, 150);
+        
+        // Draw circular background
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.minimapRadius, this.minimapRadius, this.minimapRadius, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Background fill
+        ctx.fillStyle = 'rgba(30, 30, 30, 0.8)';
+        ctx.fillRect(0, 0, 150, 150);
+        
+        // Draw terrain within range (simplified)
+        const scale = this.minimapRadius / this.minimapRange;
+        
+        // Draw Sites of Grace (gold dots)
+        if (this.game.checkpointSystem) {
+            ctx.fillStyle = '#ffd700';
+            this.game.checkpointSystem.checkpoints.forEach(checkpoint => {
+                const dx = checkpoint.x - player.position.x;
+                const dz = checkpoint.z - player.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                
+                if (dist < this.minimapRange) {
+                    const x = this.minimapRadius + dx * scale;
+                    const y = this.minimapRadius + dz * scale;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+        
+        // Draw trees (dark green dots)
+        if (this.game.world && this.game.world.trees) {
+            ctx.fillStyle = '#2d4a2d';
+            this.game.world.trees.forEach(tree => {
+                const dx = tree.position.x - player.position.x;
+                const dz = tree.position.z - player.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                
+                if (dist < this.minimapRange) {
+                    const x = this.minimapRadius + dx * scale;
+                    const y = this.minimapRadius + dz * scale;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+        
+        // Draw enemies (red dots)
+        ctx.fillStyle = '#ff0000';
+        this.game.enemies.forEach(enemy => {
+            if (!enemy.isAlive) return;
+            
+            const dx = enemy.position.x - player.position.x;
+            const dz = enemy.position.z - player.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            if (dist < this.minimapRange) {
+                const x = this.minimapRadius + dx * scale;
+                const y = this.minimapRadius + dz * scale;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+        
+        // Draw bosses (large red dots)
+        this.game.bosses.forEach(boss => {
+            if (!boss.isAlive) return;
+            
+            const dx = boss.position.x - player.position.x;
+            const dz = boss.position.z - player.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            if (dist < this.minimapRange) {
+                const x = this.minimapRadius + dx * scale;
+                const y = this.minimapRadius + dz * scale;
+                
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Pulse effect
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 7 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        });
+        
+        // Draw player (green arrow at center showing facing direction)
+        ctx.save();
+        ctx.translate(this.minimapRadius, this.minimapRadius);
+        ctx.rotate(player.rotation);
+        
+        // Draw arrow
+        ctx.fillStyle = '#00ff00';
+        ctx.beginPath();
+        ctx.moveTo(0, -6);
+        ctx.lineTo(-4, 4);
+        ctx.lineTo(0, 2);
+        ctx.lineTo(4, 4);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Arrow outline
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        ctx.restore();
+        
+        // Draw border
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.minimapRadius, this.minimapRadius, this.minimapRadius - 1, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.restore();
     }
 }
