@@ -588,8 +588,9 @@ export class VisualEffects {
         
         // Update only every other position for performance (skip every other particle)
         const positions = this.moteSystem.geometry.attributes.position.array;
+        const numParticles = positions.length / 3;
         const updateOffset = this.updateCounter % 2;
-        for (let i = updateOffset; i < positions.length / 3; i += 2) {
+        for (let i = updateOffset; i < numParticles; i += 2) {
             const idx = i * 3;
             positions[idx] += (Math.random() - 0.5) * deltaTime;
             positions[idx + 1] += Math.random() * deltaTime * 0.4;

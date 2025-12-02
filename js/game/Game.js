@@ -506,13 +506,15 @@ export class Game {
                 enemy.update(deltaTime);
             } else if (distance < farDistance) {
                 // Update mid-range enemies every 2nd frame
+                // Use regular deltaTime to avoid choppy movement
                 if ((this.frameCount + index) % 2 === 0) {
-                    enemy.update(deltaTime * 2);
+                    enemy.update(deltaTime);
                 }
             } else {
-                // Update distant enemies every 5th frame
-                if ((this.frameCount + index) % 5 === 0) {
-                    enemy.update(deltaTime * 5);
+                // Update distant enemies every 4th frame
+                // Distant enemies don't need smooth updates
+                if ((this.frameCount + index) % 4 === 0) {
+                    enemy.update(deltaTime);
                 }
             }
         });

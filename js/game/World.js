@@ -40,6 +40,8 @@ export class World {
         // Height cache for performance optimization
         this.heightCache = new Map();
         this.heightCacheMaxSize = 10000;
+        // Cache precision: higher value = more cache hits but less precision
+        this.heightCachePrecision = 2;
         
         // Environment objects - now using instanced meshes
         this.trees = [];
@@ -311,7 +313,8 @@ export class World {
     
     getHeightAt(x, z) {
         // Use cached height lookup for performance
-        const key = `${Math.floor(x * 2)},${Math.floor(z * 2)}`;
+        const precision = this.heightCachePrecision;
+        const key = `${Math.floor(x * precision)},${Math.floor(z * precision)}`;
         
         if (this.heightCache.has(key)) {
             return this.heightCache.get(key);
