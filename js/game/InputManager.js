@@ -119,7 +119,13 @@ export class InputManager {
                     this.actionPressed.inventory = true;
                 }
                 break;
-            case 'KeyF':
+            case 'KeyX':
+                // Cycle weapons
+                if (this.game.weaponSystem) {
+                    this.game.weaponSystem.cycleWeapon();
+                }
+                break;
+            case 'KeyG':
                 // Toggle debug info
                 document.getElementById('debug-info').classList.toggle('hidden');
                 break;
