@@ -442,4 +442,81 @@ export class ParticleSystem {
             this.environmentalParticles.material.dispose();
         }
     }
+    
+    // Weapon Art Particle Effects
+    spawnAuraEffect(position, color, count) {
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                this.spawnParticle(
+                    position.clone().add(new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        Math.random() * 2,
+                        (Math.random() - 0.5) * 2
+                    )),
+                    new THREE.Vector3(0, 0.5, 0),
+                    color,
+                    1.5
+                );
+            }, i * 20);
+        }
+    }
+    
+    spawnDashEffect(position, count) {
+        for (let i = 0; i < count; i++) {
+            this.spawnParticle(
+                position.clone().add(new THREE.Vector3(
+                    (Math.random() - 0.5),
+                    Math.random() * 1.5,
+                    (Math.random() - 0.5)
+                )),
+                new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.5,
+                    0,
+                    (Math.random() - 0.5) * 0.5
+                ),
+                0xaaaaff,
+                0.5
+            );
+        }
+    }
+    
+    spawnChargingEffect(position, color, count) {
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const angle = (i / count) * Math.PI * 2;
+                const radius = 1.5;
+                this.spawnParticle(
+                    position.clone().add(new THREE.Vector3(
+                        Math.cos(angle) * radius,
+                        Math.random() * 2,
+                        Math.sin(angle) * radius
+                    )),
+                    new THREE.Vector3(
+                        -Math.cos(angle) * 0.3,
+                        0.2,
+                        -Math.sin(angle) * 0.3
+                    ),
+                    color,
+                    1.0
+                );
+            }, i * 30);
+        }
+    }
+    
+    spawnMagicBurst(position, count) {
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const speed = 3 + Math.random() * 2;
+            this.spawnParticle(
+                position.clone().add(new THREE.Vector3(0, 1, 0)),
+                new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    (Math.random() - 0.2) * 2,
+                    Math.sin(angle) * speed
+                ),
+                0x8844ff,
+                1.2
+            );
+        }
+    }
 }
