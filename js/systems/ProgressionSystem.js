@@ -122,6 +122,12 @@ export class ProgressionSystem {
             // Spawn pickup effect
             this.game.particleSystem.spawnSoulsEffect(this.droppedSoulsPosition);
             
+            // Show "Souls Retrieved" message
+            const soulsRetrieved = this.droppedSouls;
+            if (this.game.hud && this.game.hud.showMessage) {
+                this.game.hud.showMessage(`Souls Retrieved: ${soulsRetrieved.toLocaleString()}`);
+            }
+            
             // Clean up
             this.droppedSouls = 0;
             this.droppedSoulsPosition = null;

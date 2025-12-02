@@ -417,7 +417,8 @@ export class Boss {
             const player = this.game.player;
             const distance = this.position.distanceTo(player.position);
             if (distance < 2) {
-                player.takeDamage(this.damage * 1.2, this.position);
+                // Pass self as attacker for parry detection
+                player.takeDamage(this.damage * 1.2, this.position, this);
             }
         } else {
             this.endAttack(3);
@@ -450,7 +451,8 @@ export class Boss {
                 const distance = this.position.distanceTo(player.position);
                 
                 if (distance < aoeRadius) {
-                    player.takeDamage(this.damage * 0.8, this.position);
+                    // Pass self as attacker for parry detection (AOE is harder to parry)
+                    player.takeDamage(this.damage * 0.8, this.position, this);
                 }
                 
                 // Big particle effect
@@ -483,7 +485,8 @@ export class Boss {
             const angle = Math.acos(facingDir.dot(toPlayer));
             
             if (angle < Math.PI * 0.7) {
-                player.takeDamage(amount, this.position);
+                // Pass self as attacker for parry detection
+                player.takeDamage(amount, this.position, this);
             }
         }
     }

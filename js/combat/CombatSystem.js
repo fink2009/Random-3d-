@@ -12,11 +12,25 @@ export class CombatSystem {
         // Damage modifiers
         this.criticalMultiplier = 2.0;
         this.backstabMultiplier = 3.0;
+        this.riposteMultiplier = 2.5; // Damage multiplier after successful parry
         
         // Parry timing
-        this.parryWindow = 0.2; // seconds
+        this.parryWindow = 0.2; // seconds - the window for successful parry
         this.parryActive = false;
         this.parryTimer = 0;
+        this.parrySuccessful = false;
+        this.parryCooldown = 0;
+        this.parryCooldownTime = 0.5; // Cooldown after parry attempt
+        
+        // Block timing for parry detection
+        this.blockStartTime = 0;
+        this.lastBlockState = false;
+        
+        // Riposte window after successful parry
+        this.riposteWindowActive = false;
+        this.riposteTimer = 0;
+        this.riposteWindow = 2.0; // Time to perform riposte after parry
+        this.staggeredEnemy = null;
         
         // Hit registration to prevent multiple hits
         this.recentHits = [];
@@ -24,11 +38,40 @@ export class CombatSystem {
     }
     
     update(deltaTime) {
+        const player = this.game.player;
+        const input = this.game.inputManager;
+        
+        // Detect parry attempt (right click tap at start of block)
+        if (input && player && input.keys) {
+            const currentBlockState = input.keys.block;
+            
+            // Detect block start (transition from not blocking to blocking)
+            if (currentBlockState && !this.lastBlockState && this.parryCooldown <= 0) {
+                this.startParry();
+            }
+            
+            this.lastBlockState = currentBlockState;
+        }
+        
         // Update parry timer
         if (this.parryActive) {
             this.parryTimer -= deltaTime;
             if (this.parryTimer <= 0) {
                 this.parryActive = false;
+            }
+        }
+        
+        // Update parry cooldown
+        if (this.parryCooldown > 0) {
+            this.parryCooldown -= deltaTime;
+        }
+        
+        // Update riposte window
+        if (this.riposteWindowActive) {
+            this.riposteTimer -= deltaTime;
+            if (this.riposteTimer <= 0) {
+                this.riposteWindowActive = false;
+                this.staggeredEnemy = null;
             }
         }
         
@@ -40,7 +83,7 @@ export class CombatSystem {
     }
     
     // Calculate damage with modifiers
-    calculateDamage(baseDamage, attacker, defender, isCritical = false, isBackstab = false) {
+    calculateDamage(baseDamage, attacker, defender, isCritical = false, isBackstab = false, isRiposte = false) {
         let damage = baseDamage;
         
         // Apply critical multiplier
@@ -51,6 +94,11 @@ export class CombatSystem {
         // Apply backstab multiplier
         if (isBackstab) {
             damage *= this.backstabMultiplier;
+        }
+        
+        // Apply riposte multiplier
+        if (isRiposte) {
+            damage *= this.riposteMultiplier;
         }
         
         // Apply attacker's strength scaling
@@ -91,9 +139,83 @@ export class CombatSystem {
     startParry() {
         this.parryActive = true;
         this.parryTimer = this.parryWindow;
+        this.parryCooldown = this.parryCooldownTime;
+        this.parrySuccessful = false;
     }
     
-    // Check if attack was parried
+    // Check if attack was parried - called when an attack hits the player
+    attemptParry(attacker) {
+        if (this.parryActive && !this.parrySuccessful) {
+            // Successful parry!
+            this.parrySuccessful = true;
+            this.parryActive = false;
+            
+            // Stagger the attacker
+            if (attacker && attacker.stagger) {
+                attacker.stagger();
+                this.staggeredEnemy = attacker;
+            }
+            
+            // Open riposte window
+            this.riposteWindowActive = true;
+            this.riposteTimer = this.riposteWindow;
+            
+            // Visual feedback - spawn parry sparks
+            if (this.game.player && this.game.particleSystem) {
+                const parryPos = this.game.player.position.clone();
+                parryPos.y += 1.2;
+                this.game.particleSystem.spawnHitSparks(parryPos, 25);
+            }
+            
+            // Show parry message
+            if (this.game.hud && this.game.hud.showMessage) {
+                this.game.hud.showMessage('PARRIED!', 1500);
+            }
+            
+            return true;
+        }
+        return false;
+    }
+    
+    // Check if we can perform a riposte on an enemy
+    canRiposte(enemy) {
+        return this.riposteWindowActive && this.staggeredEnemy === enemy;
+    }
+    
+    // Perform riposte attack
+    performRiposte(enemy) {
+        if (!this.canRiposte(enemy)) return false;
+        
+        const player = this.game.player;
+        if (!player) return false;
+        
+        // Calculate riposte damage
+        const baseDamage = player.equipment.weapon.damage;
+        const riposteDamage = this.calculateDamage(baseDamage, player, enemy, true, false, true);
+        
+        // Apply damage
+        enemy.takeDamage(riposteDamage, player.position);
+        
+        // Visual feedback
+        if (this.game.particleSystem) {
+            const hitPos = enemy.position.clone();
+            hitPos.y += 1.5;
+            this.game.particleSystem.spawnHitSparks(hitPos, 30);
+        }
+        
+        // Show critical damage message
+        if (this.game.hud && this.game.hud.showMessage) {
+            this.game.hud.showMessage('CRITICAL HIT!', 1500);
+        }
+        
+        // End riposte window
+        this.riposteWindowActive = false;
+        this.staggeredEnemy = null;
+        
+        return true;
+    }
+    
+    // Check if attack was parried (legacy method for compatibility)
     checkParry() {
         return this.parryActive;
     }
