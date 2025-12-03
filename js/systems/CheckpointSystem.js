@@ -255,6 +255,7 @@ export class CheckpointSystem {
             this.leaveBonfire();
             
             this.showNotification('Traveled to ' + other.name);
+            }
         }
     }
     
