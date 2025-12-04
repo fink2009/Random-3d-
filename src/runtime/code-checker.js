@@ -34,7 +34,7 @@ class CodeChecker {
       },
       {
         name: 'sync-xhr',
-        regex: /new\s+XMLHttpRequest\(\).*\.open\([^)]*,\s*false\s*\)/gis,
+        regex: /\.open\s*\([^)]*,\s*false\s*\)/gi,
         message: 'Synchronous XMLHttpRequest detected (blocks main thread)',
         severity: 'warning'
       },

@@ -111,7 +111,9 @@ class PotatoDefaults {
     // Apply renderer settings if available
     if (game.renderer) {
       game.renderer.setPixelRatio(1);
-      game.renderer.shadowMap.enabled = false;
+      if (game.renderer.shadowMap) {
+        game.renderer.shadowMap.enabled = false;
+      }
       console.log('[PotatoDefaults] Set pixel ratio to 1, disabled shadows');
     }
     

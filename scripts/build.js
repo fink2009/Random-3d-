@@ -73,5 +73,5 @@ console.log('  Copied src/');
 
 console.log('\n✓ Build complete! Output in dist/');
 console.log('  Run "npm run serve" to test the build');
-console.log('\nNote: Three.js library must be served separately or installed.');
-console.log('      The game uses import maps to load Three.js from /lib/three/');
+console.log('\nNote: Three.js must be available for the game to run.');
+console.log('      The game uses import maps to load Three.js via "three" and "three/addons/".');

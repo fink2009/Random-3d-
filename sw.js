@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
               .then((response) => {
                 if (response && response.status === 200) {
                   return caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, response.clone());
+                    return cache.put(event.request, response.clone());
                   });
                 }
               })

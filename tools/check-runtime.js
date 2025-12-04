@@ -182,7 +182,7 @@ function analyzeFile(filePath) {
  */
 function main() {
   console.log('🔍 Static Runtime Checker');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log(`Scanning directory: ${srcDir}\n`);
   
   const files = getJSFiles(srcDir);
