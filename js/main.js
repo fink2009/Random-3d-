@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { Game } from './game/Game.js';
 import { ErrorMonitor } from '../src/runtime/error-monitor.js';
 import { CodeChecker } from '../src/runtime/code-checker.js';
-import { PotatoDefaults } from '../src/config/potato-defaults.js';
 
 // Initialize runtime monitoring (if enabled)
 let errorMonitor = null;
@@ -41,32 +40,22 @@ if (runtimeChecksEnabled) {
     window.codeChecker = codeChecker;
 }
 
-// Initialize potato mode detector
-const potatoDefaults = new PotatoDefaults();
-potatoDefaults.detectLowEndDevice();
+// Check for forcePotato localStorage setting
+// The game's PerformanceSettings system already has auto-detection
+// This provides an additional override mechanism
+if (localStorage.getItem('forcePotato') === 'true') {
+    console.log('[Runtime] forcePotato enabled - will use potato mode');
+    localStorage.setItem('qualityPreset', 'potato');
+}
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
     // Create and start the game
     const game = new Game();
-    
-    // Apply potato defaults if needed
-    if (potatoDefaults.isPotatoMode()) {
-        console.log('[Runtime] Applying potato mode defaults...');
-        // Note: This will be applied in Game.init() after renderer is created
-        game._potatoDefaults = potatoDefaults;
-    }
-    
     game.init();
     
     // Expose game to window for debugging
     window.game = game;
     
     console.log('Soulsborne 3D initialized');
-    
-    // Log device info
-    if (potatoDefaults.isPotatoMode()) {
-        console.log('[Runtime] Potato mode active - optimizations enabled');
-        console.log('[Runtime] Device info:', potatoDefaults.deviceInfo);
-    }
 });
