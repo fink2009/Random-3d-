@@ -213,6 +213,30 @@
         }
     </script>
     
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('[SW] Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.log('[SW] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- Runtime Checks Enabler -->
+    <script>
+        // Enable runtime checks by default (can be disabled via localStorage)
+        if (!localStorage.getItem('enableRuntimeChecks')) {
+            localStorage.setItem('enableRuntimeChecks', 'true');
+        }
+    </script>
+    
+    <!-- Main Application - Use bundle.js in production, js/main.js in development -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

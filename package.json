@@ -1,0 +1,23 @@
+{
+  "name": "soulsborne-3d",
+  "version": "1.0.0",
+  "description": "A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne series",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "serve": "node scripts/serve.js",
+    "check:runtime": "node tools/check-runtime.js"
+  },
+  "keywords": [
+    "game",
+    "threejs",
+    "soulsborne",
+    "3d"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "esbuild": "^0.27.1",
+    "mime": "^4.0.1"
+  }
+}
