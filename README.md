@@ -62,14 +62,38 @@ A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne se
 
 ## Running the Game
 
-1. Serve the files with any HTTP server (required for ES modules):
+### First-Time Setup
+
+1. Install dependencies and download Three.js:
+   ```bash
+   npm install
+   npm run setup
+   ```
+
+### Building and Running
+
+2. Build the game:
+   ```bash
+   npm run build
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run serve
+   ```
+
+4. Open `http://localhost:8080` in a modern browser
+5. Click on the game to capture mouse for camera control
+
+### Alternative Setup (Without npm)
+
+If you prefer not to use npm, you can:
+1. Download Three.js r160 manually from [GitHub](https://github.com/mrdoob/three.js/releases/tag/r160)
+2. Extract to `lib/three/` directory
+3. Serve with any HTTP server:
    ```bash
    python3 -m http.server 8080
-   # or
-   npx serve
    ```
-2. Open `http://localhost:8080` in a modern browser
-3. Click on the game to capture mouse for camera control
 
 ## Performance Optimizations (NEW!)
 

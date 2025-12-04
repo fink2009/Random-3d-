@@ -71,7 +71,20 @@ console.log('  Copied js/');
 copyDir(join(rootDir, 'src'), join(distDir, 'src'));
 console.log('  Copied src/');
 
+// Copy lib directory (Three.js)
+const libSrc = join(rootDir, 'lib');
+const libDest = join(distDir, 'lib');
+if (existsSync(libSrc)) {
+  copyDir(libSrc, libDest);
+  console.log('  Copied lib/');
+} else {
+  console.log('  Warning: lib/ directory not found');
+  console.log('  Run "npm run setup" to download Three.js');
+}
+
 console.log('\n✓ Build complete! Output in dist/');
 console.log('  Run "npm run serve" to test the build');
-console.log('\nNote: Three.js must be available for the game to run.');
-console.log('      The game uses import maps to load Three.js via "three" and "three/addons/".');
+if (!existsSync(libSrc)) {
+  console.log('\n⚠️  Warning: Three.js not found!');
+  console.log('  Run "npm run setup" to download Three.js before running the game.');
+}
