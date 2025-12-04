@@ -2,12 +2,16 @@
 /**
  * Setup script - Downloads Three.js library
  * Run this script after cloning the repository to set up dependencies
+ * 
+ * This script uses platform-specific commands but provides helpful
+ * error messages and fallback instructions for cross-platform support.
  */
 
 import { existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import { platform } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -16,6 +20,7 @@ const threeDir = join(libDir, 'three');
 
 const THREE_VERSION = 'r160';
 const THREE_URL = `https://github.com/mrdoob/three.js/archive/refs/tags/${THREE_VERSION}.tar.gz`;
+const MANUAL_URL = 'https://github.com/mrdoob/three.js/releases/tag/r160';
 
 console.log('🎮 Setting up Soulsborne 3D...\n');
 
@@ -26,6 +31,14 @@ if (existsSync(join(threeDir, 'build', 'three.module.js'))) {
   process.exit(0);
 }
 
+// Warn Windows users
+if (platform() === 'win32') {
+  console.log('⚠️  Note: This script requires bash, wget, and tar.');
+  console.log('   On Windows, you can use Git Bash, WSL, or download manually.');
+  console.log('   Manual download:', MANUAL_URL);
+  console.log('   Extract to: lib/three/\n');
+}
+
 console.log('📦 Downloading Three.js', THREE_VERSION, '...');
 console.log('   This may take a moment...\n');
 
@@ -33,6 +46,7 @@ console.log('   This may take a moment...\n');
 mkdirSync(libDir, { recursive: true });
 
 // Download and extract Three.js
+// Note: The GitHub archive extracts to 'three.js-r160' (not 'three.js-160')
 const downloadProcess = spawn('bash', ['-c', `
   cd "${libDir}" && \
   wget -q --show-progress "${THREE_URL}" -O three.tar.gz && \
@@ -56,13 +70,23 @@ downloadProcess.on('close', (code) => {
   } else {
     console.error('\n✗ Failed to download Three.js');
     console.error('  Please check your internet connection and try again');
-    console.error('  Or download manually from:', THREE_URL);
+    console.error('\n  Manual setup:');
+    console.error('  1. Download:', MANUAL_URL);
+    console.error('  2. Extract to: lib/three/');
+    console.error('  3. Verify lib/three/build/three.module.js exists');
     process.exit(1);
   }
 });
 
 downloadProcess.on('error', (err) => {
   console.error('\n✗ Error running setup:', err.message);
-  console.error('  Make sure wget and tar are installed');
+  console.error('  This script requires bash, wget, and tar');
+  if (platform() === 'win32') {
+    console.error('  On Windows, use Git Bash or WSL');
+  }
+  console.error('\n  Manual setup:');
+  console.error('  1. Download:', MANUAL_URL);
+  console.error('  2. Extract to: lib/three/');
+  console.error('  3. Verify lib/three/build/three.module.js exists');
   process.exit(1);
 });
