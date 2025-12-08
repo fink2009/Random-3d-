@@ -76,7 +76,9 @@
                 <h1>PAUSED</h1>
                 <button class="menu-button" id="resume-btn">Resume</button>
                 <button class="menu-button" id="inventory-btn">Inventory</button>
+                <button class="menu-button" id="equipment-btn">Equipment</button>
                 <button class="menu-button" id="stats-btn">Character</button>
+                <button class="menu-button" id="map-btn">Map</button>
                 <button class="menu-button" id="quit-btn">Quit</button>
             </div>
         </div>
@@ -234,6 +236,24 @@
         if (!localStorage.getItem('enableRuntimeChecks')) {
             localStorage.setItem('enableRuntimeChecks', 'true');
         }
+        
+        // Helper functions for toggling settings via browser console
+        window.toggleRuntimeChecks = () => {
+            const current = localStorage.getItem('enableRuntimeChecks') === 'true';
+            localStorage.setItem('enableRuntimeChecks', (!current).toString());
+            console.log(`Runtime checks ${!current ? 'enabled' : 'disabled'}. Reload page for changes to take effect.`);
+        };
+        
+        window.toggleForcePotato = () => {
+            const current = localStorage.getItem('forcePotato') === 'true';
+            localStorage.setItem('forcePotato', (!current).toString());
+            console.log(`Force potato mode ${!current ? 'enabled' : 'disabled'}. Reload page for changes to take effect.`);
+        };
+        
+        // Log current settings
+        console.log('[Settings] Runtime checks:', localStorage.getItem('enableRuntimeChecks'));
+        console.log('[Settings] Force potato:', localStorage.getItem('forcePotato'));
+        console.log('[Settings] Use toggleRuntimeChecks() or toggleForcePotato() to change');
     </script>
     
     <!-- Main Application - Use bundle.js in production, js/main.js in development -->

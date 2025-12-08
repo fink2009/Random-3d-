@@ -476,10 +476,24 @@ export class Game {
         document.getElementById('inventory-btn')?.addEventListener('click', () => {
             this.inventorySystem.toggleInventory();
         });
+        document.getElementById('equipment-btn')?.addEventListener('click', () => {
+            // Show equipment/weapon selection UI
+            // Note: Currently uses inventory system which handles both items and equipment
+            // A dedicated equipment UI could be implemented in the future
+            if (this.inventorySystem) {
+                this.inventorySystem.toggleInventory();
+            }
+        });
         document.getElementById('stats-btn')?.addEventListener('click', () => {
             // Show character stats UI
             if (this.progressionSystem) {
                 this.showCharacterStats();
+            }
+        });
+        document.getElementById('map-btn')?.addEventListener('click', () => {
+            // Show fast travel map
+            if (this.fastTravelSystem) {
+                this.fastTravelSystem.open();
             }
         });
         document.getElementById('quit-btn')?.addEventListener('click', () => this.quit());
