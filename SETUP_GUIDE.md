@@ -30,7 +30,7 @@ Then open http://localhost:8080 in your browser.
 ### What Each Command Does
 
 1. **`npm install`** - Installs build dependencies (esbuild, mime)
-2. **`npm run setup`** - Downloads Three.js r160 to the `lib/` directory
+2. **`npm run setup`** - Downloads Three.js (version specified in scripts/setup.js) to the `lib/` directory
 3. **`npm run build`** - Copies all game files to the `dist/` directory for serving
 4. **`npm run serve`** - Starts a local web server on port 8080
 
@@ -38,7 +38,7 @@ Then open http://localhost:8080 in your browser.
 
 If you don't want to use npm:
 
-1. Download Three.js r160 manually from [GitHub](https://github.com/mrdoob/three.js/releases/tag/r160)
+1. Download Three.js manually from [GitHub releases](https://github.com/mrdoob/three.js/releases) (check scripts/setup.js for the required version)
 2. Extract the archive to `lib/three/` (so that `lib/three/build/three.module.js` exists)
 3. Serve the repository with any HTTP server:
    ```bash
@@ -75,7 +75,7 @@ After setup, verify the following files exist:
 ## Performance Notes
 
 The game includes automatic performance optimization:
-- **Potato Mode** 🥔 - For Chromebooks and integrated GPUs (16x16 terrain, 3 enemies, no shadows)
+- **Potato Mode** - For Chromebooks and integrated GPUs (16x16 terrain, 3 enemies, no shadows)
 - **Low** - For entry-level devices (32x32 terrain, minimal effects)
 - **Medium** - Balanced (default for dedicated GPUs)
 - **High** - Maximum quality (powerful systems)
