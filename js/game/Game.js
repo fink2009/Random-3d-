@@ -477,7 +477,9 @@ export class Game {
             this.inventorySystem.toggleInventory();
         });
         document.getElementById('equipment-btn')?.addEventListener('click', () => {
-            // Show equipment/weapon selection UI (uses inventory system for now)
+            // Show equipment/weapon selection UI
+            // Note: Currently uses inventory system which handles both items and equipment
+            // A dedicated equipment UI could be implemented in the future
             if (this.inventorySystem) {
                 this.inventorySystem.toggleInventory();
             }
