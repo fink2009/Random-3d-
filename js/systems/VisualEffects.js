@@ -400,7 +400,9 @@ export class VisualEffects {
         
         // Sun visibility
         this.sun.material.opacity = Math.max(0, sunHeight);
-        this.sun.children[0].material.opacity = Math.max(0, sunHeight * 0.3);
+        if (this.sun.children[0]) {
+            this.sun.children[0].material.opacity = Math.max(0, sunHeight * 0.3);
+        }
         
         // Moon visibility (night only)
         const moonVisibility = Math.max(0, -sunHeight);

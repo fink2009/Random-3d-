@@ -38,6 +38,14 @@ if (existsSync(indexSrc)) {
   console.log('  Copied index.html');
 }
 
+// Copy favicon
+const faviconSrc = join(rootDir, 'favicon.svg');
+const faviconDest = join(distDir, 'favicon.svg');
+if (existsSync(faviconSrc)) {
+  copyFileSync(faviconSrc, faviconDest);
+  console.log('  Copied favicon.svg');
+}
+
 // Copy directories recursively
 function copyDir(src, dest) {
   if (!existsSync(src)) {
