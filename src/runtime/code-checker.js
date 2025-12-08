@@ -86,8 +86,27 @@ class CodeChecker {
       this.startPeriodicScan();
     }
     
-    // Run initial scan after a delay
+    // Run initial scan after a delay (diagnostics will be triggered separately if needed)
     setTimeout(() => this.scanAll(), 2000);
+  }
+  
+  /**
+   * Run diagnostics checks
+   * 
+   * The code checker's diagnostics are performed through its regular scanAll() method
+   * which is called on init. This method is here to conform to the diagnostics interface
+   * and can be extended with additional checks if needed in the future.
+   */
+  async runDiagnostics() {
+    console.log('[CodeChecker] Running diagnostics...');
+    
+    // Trigger an immediate scan if not already running
+    if (!this.isScanning) {
+      await this.scanAll();
+    }
+    
+    console.log(`[CodeChecker] Monitoring ${this.config.files.length} files for code issues`);
+    console.log('[CodeChecker] Diagnostics complete');
   }
   
   /**

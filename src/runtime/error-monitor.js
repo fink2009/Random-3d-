@@ -191,6 +191,17 @@ class ErrorMonitor {
         cursor: pointer;
         font-size: 11px;
       ">Download Logs</button>
+      <button id="error-monitor-diagnostics" style="
+        margin-top: 4px;
+        width: 100%;
+        background: #37b24d;
+        color: white;
+        border: none;
+        padding: 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 11px;
+      ">Run Self-Diagnostics</button>
     `;
     
     document.body.appendChild(this.overlay);
@@ -202,6 +213,10 @@ class ErrorMonitor {
     
     document.getElementById('error-monitor-download').addEventListener('click', () => {
       this.downloadLogs();
+    });
+    
+    document.getElementById('error-monitor-diagnostics').addEventListener('click', () => {
+      this.runDiagnostics();
     });
     
     this.updateOverlay();
@@ -284,6 +299,214 @@ class ErrorMonitor {
       errors: this.errors,
       warnings: this.warnings
     };
+  }
+  
+  /**
+   * Run self-diagnostics
+   */
+  async runDiagnostics() {
+    console.log('[ErrorMonitor] Running self-diagnostics...');
+    
+    // Trigger code checker diagnostics if available
+    try {
+      if (window.codeChecker && typeof window.codeChecker.runDiagnostics === 'function') {
+        await window.codeChecker.runDiagnostics();
+      }
+    } catch (err) {
+      console.warn('[ErrorMonitor] Code checker diagnostics failed:', err);
+    }
+    
+    const results = {
+      timestamp: Date.now(),
+      checks: []
+    };
+    
+    // Check 1: WebGL context
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      
+      if (gl) {
+        // Get basic WebGL info without detailed hardware fingerprinting
+        const version = gl.getParameter(gl.VERSION);
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        
+        results.checks.push({
+          name: 'WebGL Context',
+          status: 'PASS',
+          details: `${version}, Max texture: ${maxTextureSize}`
+        });
+        console.log('[Diagnostics] ✓ WebGL context available');
+      } else {
+        results.checks.push({
+          name: 'WebGL Context',
+          status: 'FAIL',
+          details: 'WebGL not available'
+        });
+        console.error('[Diagnostics] ✗ WebGL context not available');
+      }
+    } catch (err) {
+      results.checks.push({
+        name: 'WebGL Context',
+        status: 'ERROR',
+        details: err.message
+      });
+      console.error('[Diagnostics] ✗ WebGL check error:', err);
+    }
+    
+    // Check 2: Critical assets (concurrent fetch for better performance)
+    const criticalAssets = [
+      '/index.html',
+      '/css/styles.css',
+      '/js/main.js',
+      '/js/game/Game.js'
+    ];
+    
+    const assetChecks = await Promise.all(
+      criticalAssets.map(async (asset) => {
+        try {
+          // Add 5 second timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const response = await fetch(asset, { 
+            method: 'HEAD',
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          return {
+            asset,
+            success: response.ok,
+            status: response.status
+          };
+        } catch (err) {
+          return {
+            asset,
+            success: false,
+            error: err.name === 'AbortError' ? 'Timeout' : (err.message || err.toString() || 'Network error')
+          };
+        }
+      })
+    );
+    
+    const assetChecksPassed = assetChecks.filter(c => c.success).length;
+    const assetChecksFailed = assetChecks.filter(c => !c.success).length;
+    
+    assetChecks.forEach(check => {
+      if (!check.success) {
+        console.warn(`[Diagnostics] Asset check failed: ${check.asset} (${check.status || check.error})`);
+      }
+    });
+    
+    results.checks.push({
+      name: 'Critical Assets',
+      status: assetChecksFailed === 0 ? 'PASS' : (assetChecksPassed > 0 ? 'PARTIAL' : 'FAIL'),
+      details: `${assetChecksPassed}/${criticalAssets.length} assets accessible`
+    });
+    
+    console.log(`[Diagnostics] Asset checks: ${assetChecksPassed}/${criticalAssets.length} passed`);
+    
+    // Check 3: Scene population
+    try {
+      // Try to access game scene if available
+      if (window.game && window.game.scene) {
+        const childCount = window.game.scene.children.length;
+        
+        if (childCount > 0) {
+          results.checks.push({
+            name: 'Scene Population',
+            status: 'PASS',
+            details: `Scene has ${childCount} objects`
+          });
+          console.log(`[Diagnostics] ✓ Scene populated with ${childCount} objects`);
+        } else {
+          results.checks.push({
+            name: 'Scene Population',
+            status: 'WARNING',
+            details: 'Scene is empty'
+          });
+          console.warn('[Diagnostics] ⚠ Scene is empty');
+        }
+      } else {
+        results.checks.push({
+          name: 'Scene Population',
+          status: 'SKIP',
+          details: 'Game not initialized yet'
+        });
+        console.log('[Diagnostics] Scene check skipped (game not initialized)');
+      }
+    } catch (err) {
+      results.checks.push({
+        name: 'Scene Population',
+        status: 'ERROR',
+        details: err.message
+      });
+      console.error('[Diagnostics] ✗ Scene check error:', err);
+    }
+    
+    // Store diagnostics results
+    this.diagnosticsResults = results;
+    
+    // Display results in overlay
+    this.showDiagnosticsResults(results);
+    
+    console.log('[ErrorMonitor] Diagnostics complete');
+    return results;
+  }
+  
+  /**
+   * Show diagnostics results in overlay
+   */
+  showDiagnosticsResults(results) {
+    const content = document.getElementById('error-monitor-content');
+    if (!content) return;
+    
+    // Clear existing content
+    content.textContent = '';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.style.marginBottom = '8px';
+    const headerText = document.createElement('strong');
+    headerText.textContent = 'Diagnostics Results:';
+    header.appendChild(headerText);
+    content.appendChild(header);
+    
+    // Add each check result
+    for (const check of results.checks) {
+      let color = '#51cf66'; // green
+      let icon = '✓';
+      
+      if (check.status === 'FAIL' || check.status === 'ERROR') {
+        color = '#ff6b6b'; // red
+        icon = '✗';
+      } else if (check.status === 'WARNING' || check.status === 'PARTIAL') {
+        color = '#ffd43b'; // yellow
+        icon = '⚠';
+      } else if (check.status === 'SKIP') {
+        color = '#adb5bd'; // gray
+        icon = '○';
+      }
+      
+      const checkDiv = document.createElement('div');
+      checkDiv.style.color = color;
+      checkDiv.style.fontSize = '10px';
+      checkDiv.style.margin = '4px 0';
+      
+      const mainLine = document.createTextNode(`${icon} ${check.name}: ${check.status}`);
+      checkDiv.appendChild(mainLine);
+      checkDiv.appendChild(document.createElement('br'));
+      
+      const detailsSpan = document.createElement('span');
+      detailsSpan.style.color = '#adb5bd';
+      detailsSpan.style.marginLeft = '12px';
+      detailsSpan.textContent = check.details;
+      checkDiv.appendChild(detailsSpan);
+      
+      content.appendChild(checkDiv);
+    }
   }
 }
 
