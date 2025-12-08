@@ -491,7 +491,7 @@ export class Game {
         document.getElementById('map-btn')?.addEventListener('click', () => {
             // Show fast travel map
             if (this.fastTravelSystem) {
-                this.fastTravelSystem.openMap();
+                this.fastTravelSystem.open();
             }
         });
         document.getElementById('quit-btn')?.addEventListener('click', () => this.quit());
