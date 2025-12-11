@@ -257,6 +257,76 @@
         console.log('[Settings] Use toggleRuntimeChecks() or toggleForcePotato() to change');
     </script>
     
+    <!-- Three.js Detection Script -->
+    <script>
+        // Check if Three.js is available immediately when page loads
+        (async function checkThreeJS() {
+            try {
+                const response = await fetch('/lib/three/build/three.module.js', { method: 'HEAD' });
+                if (!response.ok) {
+                    throw new Error('Three.js not found');
+                }
+            } catch (error) {
+                console.error('[Setup Error] Three.js library not found!');
+                console.error('[Setup Error] This causes the black screen with only UI visible.');
+                console.error('[Setup Error] Please run: npm install && npm run setup');
+                console.error('[Setup Error] See README.md for detailed setup instructions.');
+                
+                // Show error overlay immediately
+                function showSetupError() {
+                    const overlay = document.createElement('div');
+                    overlay.id = 'setup-error-overlay';
+                    overlay.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0, 0, 0, 0.95);
+                        color: #ff6b6b;
+                        padding: 30px;
+                        border: 3px solid #ff6b6b;
+                        border-radius: 10px;
+                        font-family: monospace;
+                        font-size: 14px;
+                        z-index: 10000;
+                        max-width: 600px;
+                        text-align: left;
+                    `;
+                    overlay.innerHTML = `
+                        <h2 style="margin-top: 0; color: #ff6b6b;">⚠️ Setup Required</h2>
+                        <p><strong>Three.js library not found!</strong></p>
+                        <p>This causes the black screen with only UI visible.</p>
+                        <h3 style="color: #ffd93d;">Quick Fix:</h3>
+                        <pre style="background: #1a1a1a; padding: 10px; border-radius: 5px; overflow-x: auto;">npm install
+npm run setup
+npm run build
+npm run serve</pre>
+                        <p><strong>Why?</strong> The game requires Three.js which is not included in the repository to keep it lightweight. You must download it using the setup script.</p>
+                        <p style="font-size: 12px; color: #888;">See <strong>README.md</strong> for detailed instructions.</p>
+                        <button onclick="this.parentElement.remove()" style="
+                            background: #ff6b6b;
+                            border: none;
+                            color: white;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-family: monospace;
+                            margin-top: 10px;
+                        ">Close</button>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                
+                // Show error immediately if DOM is ready, otherwise wait
+                if (document.body) {
+                    showSetupError();
+                } else {
+                    document.addEventListener('DOMContentLoaded', showSetupError);
+                }
+            }
+        })();
+    </script>
+    
     <!-- Main Application - Use bundle.js in production, js/main.js in development -->
     <script type="module" src="js/main.js"></script>
 </body>
