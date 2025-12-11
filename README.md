@@ -2,6 +2,23 @@
 
 A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne series, built with Three.js.
 
+## ⚠️ IMPORTANT - First-Time Setup Required
+
+**If you see a black screen with only UI visible, you need to run the setup first!**
+
+The game requires Three.js which must be downloaded before running:
+
+```bash
+npm install
+npm run setup
+npm run build
+npm run serve
+```
+
+Then open `http://localhost:8080` in your browser.
+
+See [Running the Game](#running-the-game) for detailed instructions.
+
 ## Features
 
 ### Movement & Combat (Fully Implemented)
@@ -64,6 +81,8 @@ A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne se
 
 ### First-Time Setup
 
+**Required:** The game needs Three.js library which is not included in the repository.
+
 1. Install dependencies and download Three.js:
    ```bash
    npm install
@@ -84,6 +103,19 @@ A seamless open-world 3D action RPG inspired by Elden Ring and the Soulsborne se
 
 4. Open `http://localhost:8080` in a modern browser
 5. Click on the game to capture mouse for camera control
+
+### Troubleshooting
+
+**Black screen with only UI visible?**
+- This means Three.js is not installed
+- Run `npm run setup` to download Three.js
+- Verify `lib/three/build/three.module.js` exists after setup
+- Then run `npm run build` and `npm run serve`
+
+**404 errors in browser console?**
+- Check for `/lib/three/build/three.module.js` 404 errors
+- These indicate Three.js was not downloaded
+- Solution: Run `npm run setup` then rebuild
 
 ### Alternative Setup (Without npm)
 

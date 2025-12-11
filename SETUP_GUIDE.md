@@ -1,10 +1,10 @@
 # Setup Guide - Fixing Black Screen Issue
 
 ## Problem
-The game shows UI elements but displays a black screen with frozen gameplay.
+The game shows UI elements but displays a **black screen** with frozen gameplay. You may also see **404 errors** in the browser console for files like `/lib/three/build/three.module.js`.
 
 ## Root Cause
-The game requires the Three.js library to be downloaded before it can run. The library is not included in the repository to keep it lightweight and must be installed during setup.
+The game requires the Three.js library to be downloaded before it can run. The library is not included in the repository (it's in `.gitignore`) to keep it lightweight and must be installed during setup.
 
 ## Solution
 
