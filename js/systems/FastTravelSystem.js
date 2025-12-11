@@ -84,8 +84,8 @@ export class FastTravelSystem {
         // Check if player is near any checkpoint
         for (const checkpoint of this.game.checkpointSystem.checkpoints) {
             const dist = Math.sqrt(
-                Math.pow(player.position.x - checkpoint.x, 2) +
-                Math.pow(player.position.z - checkpoint.z, 2)
+                Math.pow(player.position.x - checkpoint.position.x, 2) +
+                Math.pow(player.position.z - checkpoint.position.z, 2)
             );
             
             if (dist < 5) {
@@ -143,8 +143,8 @@ export class FastTravelSystem {
         // Draw Sites of Grace
         if (this.game.checkpointSystem) {
             this.game.checkpointSystem.checkpoints.forEach(checkpoint => {
-                const mapX = this.worldToMapX(checkpoint.x);
-                const mapY = this.worldToMapY(checkpoint.z);
+                const mapX = this.worldToMapX(checkpoint.position.x);
+                const mapY = this.worldToMapY(checkpoint.position.z);
                 
                 // Check if discovered
                 const isDiscovered = this.discoveredGraces.has(checkpoint.name);
@@ -247,8 +247,8 @@ export class FastTravelSystem {
         // Check if clicked on a Site of Grace
         if (this.game.checkpointSystem) {
             for (const checkpoint of this.game.checkpointSystem.checkpoints) {
-                const graceMapX = this.worldToMapX(checkpoint.x);
-                const graceMapY = this.worldToMapY(checkpoint.z);
+                const graceMapX = this.worldToMapX(checkpoint.position.x);
+                const graceMapY = this.worldToMapY(checkpoint.position.z);
                 
                 const dist = Math.sqrt(
                     Math.pow(mapX - graceMapX, 2) +
@@ -273,8 +273,8 @@ export class FastTravelSystem {
         
         // Teleport after a short delay
         setTimeout(() => {
-            const groundY = this.game.world.getHeightAt(checkpoint.x, checkpoint.z);
-            player.position.set(checkpoint.x, groundY + 1, checkpoint.z);
+            const groundY = this.game.world.getHeightAt(checkpoint.position.x, checkpoint.position.z);
+            player.position.set(checkpoint.position.x, groundY + 1, checkpoint.position.z);
             player.velocity.set(0, 0, 0);
             
             // Show arrival message
